@@ -1,0 +1,21 @@
+{
+  "name": "p2k-twibbon-tools",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "lucide-react": "latest",
+    "mediabunny": "^1.55.7",
+    "next": "latest",
+    "react": "latest",
+    "react-dom": "latest"
+  },
+  "devDependencies": {
+    "playwright": "^1.63.0"
+  }
+}

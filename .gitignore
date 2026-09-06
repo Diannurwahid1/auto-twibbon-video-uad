@@ -1,0 +1,30 @@
+# dependencies
+node_modules/
+
+# next.js
+.next/
+out/
+
+# production
+build/
+
+# local env
+.env
+.env*.local
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# local generated files
+.render-jobs/
+qa/
+
+# duplicate local template; runtime template is public/twibbon.mp4
+/twibbon.mp4
+
+# system files
+.DS_Store
+Thumbs.db
