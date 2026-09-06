@@ -40,19 +40,15 @@ export default function VideoGenerator() {
   const editorFrameRef = useRef(null);
   const dragRef = useRef(null);
   const workerRef = useRef(null);
-  const autoPreviewRef = useRef(null);
-  const lastAutoPreviewKeyRef = useRef("");
   const [photoFile, setPhotoFile] = useState(null);
   const [photoUrl, setPhotoUrl] = useState("");
-  const [previewUrl, setPreviewUrl] = useState("");
-  const [previewBlob, setPreviewBlob] = useState(null);
   const [downloadUrl, setDownloadUrl] = useState("");
   const [downloadBlob, setDownloadBlob] = useState(null);
   const [placement, setPlacement] = useState(DEFAULT_PLACEMENT);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [renderMode, setRenderMode] = useState("");
   const [progress, setProgress] = useState(0);
-  const [status, setStatus] = useState("Upload foto, atur posisi, lalu preview otomatis muncul.");
+  const [status, setStatus] = useState("Upload foto, atur posisi, lalu generate video HD.");
   const [error, setError] = useState("");
   const [floatingAlert, setFloatingAlert] = useState("");
   const isRendering = Boolean(renderMode);
@@ -67,7 +63,6 @@ export default function VideoGenerator() {
 
   useEffect(() => () => {
     workerRef.current?.terminate();
-    window.clearTimeout(autoPreviewRef.current);
   }, []);
 
   useEffect(() => {
@@ -78,19 +73,6 @@ export default function VideoGenerator() {
       document.body.style.overflow = previousOverflow;
     };
   }, [isEditorOpen]);
-
-  useEffect(() => {
-    if (!photoFile || isRendering || isEditorOpen) return;
-    const nextPreviewKey = getPreviewKey(photoFile, placement);
-    if (lastAutoPreviewKeyRef.current === nextPreviewKey) return;
-    setStatus("Penyesuaian tersimpan. Preview otomatis dimulai sebentar lagi.");
-    window.clearTimeout(autoPreviewRef.current);
-    autoPreviewRef.current = window.setTimeout(() => {
-      lastAutoPreviewKeyRef.current = nextPreviewKey;
-      renderVideo("preview", photoFile, placement);
-    }, 650);
-    return () => window.clearTimeout(autoPreviewRef.current);
-  }, [photoFile, placement, isRendering, isEditorOpen]);
 
   useEffect(() => {
     if (!floatingAlert) return;
@@ -116,29 +98,23 @@ export default function VideoGenerator() {
     setPhotoUrl((current) => replaceObjectUrl(current, URL.createObjectURL(file)));
     setPhotoFile(file);
     setIsEditorOpen(true);
-    setStatus("Foto masuk. Geser foto di dalam frame, lalu buat preview.");
+    setStatus("Foto masuk. Geser foto di dalam frame, lalu generate HD.");
   }
 
   function updatePlacement(key, value) {
     setDownloadUrl((current) => replaceObjectUrl(current, ""));
     setDownloadBlob(null);
-    setPreviewUrl((current) => replaceObjectUrl(current, ""));
-    setPreviewBlob(null);
     setProgress(0);
     setPlacement((current) => ({ ...current, [key]: Number(value) }));
   }
 
   function resetOutputs() {
-    window.clearTimeout(autoPreviewRef.current);
-    lastAutoPreviewKeyRef.current = "";
     setError("");
     setFloatingAlert("");
     setProgress(0);
-    setPreviewUrl((current) => replaceObjectUrl(current, ""));
-    setPreviewBlob(null);
     setDownloadUrl((current) => replaceObjectUrl(current, ""));
     setDownloadBlob(null);
-    setStatus("Upload foto, atur posisi, lalu preview otomatis muncul.");
+    setStatus("Upload foto, atur posisi, lalu generate video HD.");
   }
 
   function resetAll() {
@@ -171,8 +147,6 @@ export default function VideoGenerator() {
     const nextY = clamp(drag.placement.y + (event.clientY - drag.startY) / drag.rect.height, -0.28, 0.28);
     setDownloadUrl((current) => replaceObjectUrl(current, ""));
     setDownloadBlob(null);
-    setPreviewUrl((current) => replaceObjectUrl(current, ""));
-    setPreviewBlob(null);
     setProgress(0);
     setPlacement((current) => ({ ...current, x: nextX, y: nextY }));
   }
@@ -183,7 +157,7 @@ export default function VideoGenerator() {
 
   function finishEditor() {
     setIsEditorOpen(false);
-    setStatus("Posisi foto disimpan. Preview otomatis sedang disiapkan.");
+    setStatus("Posisi foto disimpan. Klik Generate HD untuk membuat video final.");
   }
 
   async function renderVideo(mode, file = photoFile, nextPlacement = placement) {
@@ -193,11 +167,10 @@ export default function VideoGenerator() {
       return;
     }
 
-    window.clearTimeout(autoPreviewRef.current);
     setRenderMode(mode);
     setError("");
     setProgress(1);
-    setStatus(mode === "preview" ? "Membuat preview ringan..." : "Membuat video Full HD...");
+    setStatus("Membuat video Full HD...");
 
     try {
       const worker = ensureWorker();
@@ -231,15 +204,9 @@ export default function VideoGenerator() {
         const url = URL.createObjectURL(blob);
         setProgress(100);
         setRenderMode("");
-        if (data.mode === "preview") {
-          setPreviewUrl((current) => replaceObjectUrl(current, url));
-          setPreviewBlob(blob);
-          setStatus("Preview siap. Kalau posisinya sudah pas, unduh versi Full HD.");
-        } else {
-          setDownloadUrl((current) => replaceObjectUrl(current, url));
-          setDownloadBlob(blob);
-          setStatus("Video Full HD selesai. Klik Unduh HD Lagi kalau download belum muncul.");
-        }
+        setDownloadUrl((current) => replaceObjectUrl(current, url));
+        setDownloadBlob(blob);
+        setStatus("Video Full HD selesai. Klik Unduh HD Lagi kalau download belum muncul.");
       }
     };
     worker.onerror = () => finishWithError("Render berhenti. Muat ulang halaman lalu coba lagi.");
@@ -254,13 +221,12 @@ export default function VideoGenerator() {
   }
 
   async function shareVideo(target = "Instagram") {
-    const blob = downloadBlob ?? previewBlob;
+    const blob = downloadBlob;
     if (!blob) return;
 
-    const isFullHd = Boolean(downloadBlob);
     const file = new File(
       [blob],
-      isFullHd ? "twibbon-p2k-prakarsa-uad-2026-full-hd.mp4" : "preview-twibbon-p2k.mp4",
+      "twibbon-p2k-prakarsa-uad-2026-full-hd.mp4",
       { type: "video/mp4" },
     );
     const shareData = {
@@ -283,14 +249,14 @@ export default function VideoGenerator() {
     }
   }
 
-  const hasShareableVideo = Boolean(previewBlob || downloadBlob);
+  const hasShareableVideo = Boolean(downloadBlob);
 
   return (
     <section className="hero-tool" id="generator" aria-label="Generator Twibbon Video P2K">
       <div className="tool-panel glass-panel">
         <div className="tool-header">
           <span>Twibbon Video P2K</span>
-          <strong>Upload, atur, preview, unduh.</strong>
+          <strong>Upload, atur, generate, unduh.</strong>
         </div>
 
         <div className="tool-grid">
@@ -324,7 +290,7 @@ export default function VideoGenerator() {
                 <Move size={17} />
                 <strong>Posisi Foto</strong>
               </div>
-              <p>Geser foto langsung di frame agar wajah pas sebelum preview dibuat.</p>
+              <p>Geser foto langsung di frame agar wajah pas sebelum video HD dibuat.</p>
               <button
                 className="open-editor-button"
                 type="button"
@@ -339,13 +305,13 @@ export default function VideoGenerator() {
 
           <div className="preview-side">
             <div className="preview-frame">
-              {previewUrl ? (
-                <video src={previewUrl} controls playsInline />
+              {downloadUrl ? (
+                <video src={downloadUrl} controls playsInline />
               ) : (
                 <div className="live-compose" style={previewStyle(placement)}>
                   {photoUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={photoUrl} alt="Preview posisi foto" />
+                    <img src={photoUrl} alt="Posisi foto sebelum generate HD" />
                   ) : null}
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img className="template-frame" src="/editor-frame.png" alt="" />
@@ -357,7 +323,7 @@ export default function VideoGenerator() {
 
             <div className="progress-box" aria-live="polite">
               <div className="step-track">
-                {["Upload", "Atur", "Preview", "Unduh"].map((item, index) => (
+                {["Upload", "Atur", "Generate", "Unduh"].map((item, index) => (
                   <span
                     className={
                       progress >= index * 28 || (index < 2 && photoFile) ? "active" : ""
@@ -374,7 +340,7 @@ export default function VideoGenerator() {
               <strong>{status}</strong>
               <p>
                 {isRendering ? <Loader2 size={15} /> : <Play size={15} fill="currentColor" />}
-                {isRendering ? loadingText : "Preview ringan, download tetap Full HD dengan suara asli."}
+                {isRendering ? loadingText : "Generate HD sekali, hasilnya siap diunduh dan dibagikan."}
               </p>
               {error ? <small>{error}</small> : null}
             </div>
@@ -383,7 +349,7 @@ export default function VideoGenerator() {
               <div className="share-panel">
                 <div>
                   <strong>Bagikan video</strong>
-                  <span>{downloadBlob ? "Versi Full HD siap dibagikan." : "Preview siap. Full HD tetap tersedia setelah dirender."}</span>
+                  <span>Versi Full HD siap dibagikan.</span>
                   {downloadBlob ? (
                     <small className="ios-download-note">
                       iPhone: jika tidak muncul di Galeri, cek Files &gt; Downloads lalu pilih Share &gt; Save Video.
@@ -412,14 +378,6 @@ export default function VideoGenerator() {
             ) : null}
 
             <div className="tool-actions">
-              <button
-                type="button"
-                onClick={() => renderVideo("preview")}
-                disabled={!photoFile || isRendering}
-              >
-                <Play size={17} fill="currentColor" />
-                Preview
-              </button>
               {downloadUrl ? (
                 <button
                   className="download-ready"
@@ -434,7 +392,7 @@ export default function VideoGenerator() {
                   className="primary-tool-action"
                   type="button"
                   onClick={() => renderVideo("hd")}
-                  disabled={!previewUrl || isRendering}
+                  disabled={!photoFile || isRendering}
                 >
                   <Download size={17} />
                   Generate HD
@@ -455,7 +413,7 @@ export default function VideoGenerator() {
             <div className="editor-copy">
               <span>Atur Foto</span>
               <h2>Geser fotomu sampai pas di frame.</h2>
-              <p>Drag foto di area preview. Setelah selesai, preview video akan dibuat otomatis.</p>
+              <p>Drag foto di area frame. Setelah selesai, klik Generate HD untuk membuat video final.</p>
             </div>
             <div
               ref={editorFrameRef}
@@ -508,7 +466,7 @@ export default function VideoGenerator() {
               </button>
               <button className="primary-tool-action" type="button" onClick={finishEditor} disabled={isRendering}>
                 <Check size={17} />
-                Selesai, Buat Preview
+                Selesai
               </button>
             </div>
           </div>
@@ -560,18 +518,6 @@ function previewStyle(placement) {
     "--photo-y": `${placement.y * 100}%`,
     "--photo-rotate": `${placement.rotation}deg`,
   };
-}
-
-function getPreviewKey(file, placement) {
-  return [
-    file.name,
-    file.size,
-    file.lastModified,
-    placement.scale,
-    placement.x,
-    placement.y,
-    placement.rotation,
-  ].join(":");
 }
 
 function replaceObjectUrl(current, next) {

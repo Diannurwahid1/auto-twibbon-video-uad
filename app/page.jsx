@@ -26,7 +26,7 @@ const benefits = [
   {
     icon: Zap,
     title: "Cepat",
-    body: "Preview otomatis setelah foto diatur.",
+    body: "Generate HD setelah foto diatur.",
   },
   {
     icon: Download,
@@ -49,7 +49,7 @@ const technologies = [
   {
     logo: "/tech/webcodecs.svg",
     name: "WebCodecs",
-    body: "Preview dan encoding memakai dukungan browser modern.",
+    body: "Encoding memakai dukungan browser modern.",
   },
   {
     logo: "/tech/cloudflare.svg",
@@ -147,7 +147,7 @@ export default function Home() {
             Upload foto, twibbon video P2K <span>langsung jadi</span> tanpa CapCut.
           </h1>
           <p>
-            Pilih foto terbaikmu, geser posisinya di frame, lihat preview,
+            Pilih foto terbaikmu, geser posisinya di frame, generate HD,
             lalu unduh video P2K Full HD yang siap dibagikan.
           </p>
           <div className="hero-meta">
@@ -188,7 +188,7 @@ export default function Home() {
           <h2>Lihat alur cepat sebelum bikin video.</h2>
           <p>
             Tutorial singkat ini menunjukkan langkah utama: upload foto, atur
-            posisi wajah di frame, cek preview, unduh Full HD, lalu bagikan.
+            posisi wajah di frame, generate Full HD, lalu bagikan.
           </p>
           <a className="tutorial-download" href="/tutorial-p2k.webm" download="tutorial-tools-auto-editor-p2k.webm">
             <Download size={17} />
@@ -230,7 +230,7 @@ export default function Home() {
           <p>
             Format video dibuat mengikuti pengumuman P2K Prakarsa UAD. Tool ini
             hanya membantu memudahkan proses yang awalnya perlu edit manual di
-            CapCut: upload foto, atur posisi, preview, lalu unduh video siap
+            CapCut: upload foto, atur posisi, generate HD, lalu unduh video siap
             dibagikan.
           </p>
         </div>
@@ -257,7 +257,7 @@ export default function Home() {
           <h2>Kebijakan Privasi</h2>
           <p>
             Foto kamu diproses langsung di browser. File tidak dikirim ke server,
-            tidak disimpan, dan hanya dipakai untuk membuat preview serta video
+            tidak disimpan, dan hanya dipakai untuk membuat video
             yang kamu unduh.
           </p>
         </article>
