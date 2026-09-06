@@ -840,6 +840,85 @@ p {
   cursor: pointer;
 }
 
+.browser-notice {
+  position: fixed;
+  right: 18px;
+  bottom: 166px;
+  z-index: 130;
+  display: grid;
+  gap: 10px;
+  width: min(430px, calc(100vw - 36px));
+  padding: 16px;
+  color: #111318;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(17, 19, 24, 0.12);
+  border-radius: 20px;
+  box-shadow: 0 22px 70px rgba(17, 19, 24, 0.18);
+  backdrop-filter: blur(18px);
+  animation: alertIn 220ms ease-out both;
+}
+
+.browser-notice strong {
+  padding-right: 34px;
+  font-size: 1rem;
+}
+
+.browser-notice p,
+.browser-notice small {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.browser-notice small {
+  color: #8a5a3d;
+  font-weight: 650;
+}
+
+.browser-notice-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  color: #30343b;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.browser-notice-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.browser-notice-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1 1 150px;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 13px;
+  color: #ffffff;
+  background: var(--orange);
+  border-radius: 13px;
+  cursor: pointer;
+  font-size: 0.84rem;
+  font-weight: 850;
+}
+
+.browser-notice-actions button + button {
+  color: #272c34;
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid var(--line);
+}
+
 .editor-modal {
   display: grid;
   grid-template-columns: minmax(220px, 0.7fr) minmax(260px, 360px);
@@ -1553,6 +1632,18 @@ p {
     right: 10px;
     left: 10px;
     width: auto;
+  }
+
+  .browser-notice {
+    right: 10px;
+    bottom: 92px;
+    width: calc(100vw - 20px);
+    padding: 14px;
+    border-radius: 18px;
+  }
+
+  .browser-notice-actions button {
+    flex-basis: 100%;
   }
 }
 

@@ -1,8 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
-import { AtSign, Download, Gift, MoveDownRight, PlayCircle, ShieldCheck, UserRound, Zap } from "lucide-react";
+import {
+  AtSign,
+  Copy,
+  Download,
+  ExternalLink,
+  Gift,
+  MoveDownRight,
+  PlayCircle,
+  ShieldCheck,
+  UserRound,
+  X,
+  Zap,
+} from "lucide-react";
 import VideoGenerator from "@/components/video-generator";
 
 const benefits = [
@@ -58,6 +70,44 @@ const instagramReelThumb =
 
 export default function Home() {
   const [isInstagramOpen, setIsInstagramOpen] = useState(false);
+  const [showBrowserNotice, setShowBrowserNotice] = useState(false);
+  const [isAndroidDevice, setIsAndroidDevice] = useState(false);
+  const [isLinkCopied, setIsLinkCopied] = useState(false);
+
+  useEffect(() => {
+    const userAgent = navigator.userAgent || "";
+    const isInAppBrowser = /Instagram|FBAN|FBAV|FB_IAB|Line|TikTok/i.test(userAgent);
+    const dismissed = sessionStorage.getItem("browser-notice-dismissed") === "true";
+    setIsAndroidDevice(/Android/i.test(userAgent));
+    if (isInAppBrowser && !dismissed) setShowBrowserNotice(true);
+  }, []);
+
+  async function copyCurrentLink() {
+    const url = window.location.href;
+    try {
+      await navigator.clipboard.writeText(url);
+      setIsLinkCopied(true);
+      window.setTimeout(() => setIsLinkCopied(false), 2200);
+    } catch {
+      window.prompt("Salin link ini lalu buka di Chrome/Safari:", url);
+    }
+  }
+
+  function openInExternalBrowser() {
+    const url = window.location.href;
+    if (isAndroidDevice) {
+      const parsed = new URL(url);
+      const fallback = encodeURIComponent(url);
+      window.location.href = `intent://${parsed.host}${parsed.pathname}${parsed.search}${parsed.hash}#Intent;scheme=${parsed.protocol.replace(":", "")};package=com.android.chrome;S.browser_fallback_url=${fallback};end`;
+      return;
+    }
+    copyCurrentLink();
+  }
+
+  function dismissBrowserNotice() {
+    sessionStorage.setItem("browser-notice-dismissed", "true");
+    setShowBrowserNotice(false);
+  }
 
   return (
     <main className="app-shell">
@@ -241,6 +291,38 @@ export default function Home() {
         </button>
         <InstagramEmbed className="instagram-float" />
       </div>
+
+      {showBrowserNotice ? (
+        <div className="browser-notice" role="dialog" aria-label="Buka di browser utama">
+          <button
+            className="browser-notice-close"
+            type="button"
+            onClick={dismissBrowserNotice}
+            aria-label="Tutup pemberitahuan"
+          >
+            <X size={16} />
+          </button>
+          <strong>Buka di Chrome/Safari dulu</strong>
+          <p>
+            Browser Instagram kadang memblokir download video. Untuk hasil paling
+            lancar, buka halaman ini di browser utama.
+          </p>
+          <div className="browser-notice-actions">
+            <button type="button" onClick={openInExternalBrowser}>
+              <ExternalLink size={16} />
+              {isAndroidDevice ? "Buka di Chrome" : "Buka di Browser"}
+            </button>
+            <button type="button" onClick={copyCurrentLink}>
+              <Copy size={16} />
+              {isLinkCopied ? "Link Tersalin" : "Salin Link"}
+            </button>
+          </div>
+          <small>
+            iPhone: tap menu Instagram, pilih buka di browser luar, atau salin
+            link lalu buka di Safari/Chrome.
+          </small>
+        </div>
+      ) : null}
     </main>
   );
 }
