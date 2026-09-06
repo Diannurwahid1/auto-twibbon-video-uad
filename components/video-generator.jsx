@@ -221,7 +221,7 @@ export default function VideoGenerator() {
         setRenderMode("");
         setDownloadUrl((current) => replaceObjectUrl(current, url));
         setDownloadBlob(blob);
-        setStatus("Video Full HD selesai. Klik Unduh HD Lagi kalau download belum muncul.");
+        setStatus("Video Full HD selesai. Klik Unduh HD untuk menyimpan file.");
       }
     };
     worker.onerror = () => finishWithError("Render berhenti. Muat ulang halaman lalu coba lagi.");
@@ -394,9 +394,13 @@ export default function VideoGenerator() {
                     <Share2 size={16} />
                     Story
                   </button>
-                  <button className="primary-tool-action" type="button" onClick={() => shareVideo("aplikasi pilihan")}>
-                    <Share2 size={16} />
-                    Bagikan
+                  <button
+                    className="primary-tool-action"
+                    type="button"
+                    onClick={() => triggerDownload(downloadUrl, "twibbon-p2k-prakarsa-uad-2026-full-hd.mp4")}
+                  >
+                    <Download size={16} />
+                    Unduh HD
                   </button>
                 </div>
               </div>
@@ -448,16 +452,7 @@ export default function VideoGenerator() {
             ) : null}
 
             <div className="tool-actions">
-              {downloadUrl ? (
-                <button
-                  className="download-ready"
-                  type="button"
-                  onClick={() => triggerDownload(downloadUrl, "twibbon-p2k-prakarsa-uad-2026-full-hd.mp4")}
-                >
-                  <Download size={17} />
-                  Unduh HD Lagi
-                </button>
-              ) : (
+              {!downloadUrl ? (
                 <button
                   className="primary-tool-action"
                   type="button"
@@ -467,7 +462,7 @@ export default function VideoGenerator() {
                   <Download size={17} />
                   Generate HD
                 </button>
-              )}
+              ) : null}
               <button type="button" onClick={resetAll} disabled={isRendering || !photoFile}>
                 <RotateCcw size={17} />
                 Reset
