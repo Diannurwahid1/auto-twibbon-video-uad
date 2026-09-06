@@ -51,6 +51,11 @@ const technologies = [
   },
 ];
 
+const instagramReelUrl = "https://www.instagram.com/denzhang1/reel/Dc7poZUAfGv/";
+const instagramIconUrl = "https://static.cdninstagram.com/rsrc.php/yr/r/rzWiSjZRxk5.webp";
+const instagramReelThumb =
+  "https://scontent.cdninstagram.com/v/t51.71878-15/796641279_1388252672753971_1669868412018179825_n.jpg?stp=cmp1_dst-jpg_e35_s640x640_tt6&_nc_cat=111&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=csclNU-lUiMQ7kNvwG2CQ9J&_nc_oc=Adpf3JAKrk4poVQ11BWBKFjBx_kG4Z0f81ZPQDOQxL_DQkEuZ3ChZ0M7lGk2gXDB7V4&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&_nc_gid=LrJ2RWWwt-86PTa__YJwFA&_nc_ss=70689&oh=00_AQJv8UkwWAuE7iP4urXNand1ExqjLeoNlGDYY-qEhYmpdQ&oe=6AA2D70D";
+
 export default function Home() {
   const [isInstagramOpen, setIsInstagramOpen] = useState(false);
 
@@ -183,6 +188,9 @@ export default function Home() {
             @denzhang1
           </a>
         </div>
+        <div className="developer-instagram">
+          <InstagramEmbed />
+        </div>
       </section>
 
       <section className="policy-section" id="privasi" aria-label="Kebijakan dan syarat layanan">
@@ -219,24 +227,48 @@ export default function Home() {
           aria-expanded={isInstagramOpen}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="https://static.cdninstagram.com/rsrc.php/yr/r/rzWiSjZRxk5.webp" alt="" />
-          Follow yuk
+          <img src={instagramIconUrl} alt="" />
+          Like twibbon IG saya
         </button>
-        <a
-          className="instagram-float"
-          href="https://www.instagram.com/denzhang1/p/DNlKTOAhGIS/"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="https://static.cdninstagram.com/rsrc.php/yr/r/rzWiSjZRxk5.webp" alt="" />
-          <span>
-            <small>Instagram - Dian Nurwahid di Instagram: "加油!"</small>
-            <strong>Dian Nurwahid (@denzhang1) - Foto dan video Instagram</strong>
-            <em>53 likes, 3 comments - denzhang1 pada August 20, 2025: "加油!".</em>
-          </span>
-        </a>
+        <InstagramEmbed className="instagram-float" />
       </div>
     </main>
+  );
+}
+
+function InstagramEmbed({ className = "instagram-embed" }) {
+  return (
+    <a
+      className={className}
+      href={instagramReelUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      <div className="instagram-thumb">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={instagramReelThumb}
+          alt=""
+          onError={(event) => {
+            event.currentTarget.onerror = null;
+            event.currentTarget.src = instagramIconUrl;
+            event.currentTarget.classList.add("fallback-icon");
+          }}
+        />
+      </div>
+      <div className="instagram-content">
+        <div className="instagram-source">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={instagramIconUrl} alt="" />
+          <span>Instagram</span>
+        </div>
+        <strong>Dian Nurwahid (@denzhang1) - reel Instagram</strong>
+        <em>
+          2 likes, 0 comments - denzhang1 pada September 5, 2026:
+          "Assalamualaikum Warahmatullahi Wabarakatuh, Dahlan Muda Berkarya
+          Wujudkan Transformasi Berkemajuan."
+        </em>
+      </div>
+    </a>
   );
 }
