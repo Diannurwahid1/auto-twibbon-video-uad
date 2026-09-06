@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { AtSign, Download, Gift, PlayCircle, ShieldCheck, UserRound, Zap } from "lucide-react";
+import { AtSign, Download, Gift, MoveDownRight, PlayCircle, ShieldCheck, UserRound, Zap } from "lucide-react";
 import VideoGenerator from "@/components/video-generator";
 
 const benefits = [
@@ -54,7 +54,7 @@ const technologies = [
 const instagramReelUrl = "https://www.instagram.com/denzhang1/reel/Dc7poZUAfGv/";
 const instagramIconUrl = "https://static.cdninstagram.com/rsrc.php/yr/r/rzWiSjZRxk5.webp";
 const instagramReelThumb =
-  "https://scontent.cdninstagram.com/v/t51.71878-15/796641279_1388252672753971_1669868412018179825_n.jpg?stp=cmp1_dst-jpg_e35_s640x640_tt6&_nc_cat=111&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=csclNU-lUiMQ7kNvwG2CQ9J&_nc_oc=Adpf3JAKrk4poVQ11BWBKFjBx_kG4Z0f81ZPQDOQxL_DQkEuZ3ChZ0M7lGk2gXDB7V4&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&_nc_gid=LrJ2RWWwt-86PTa__YJwFA&_nc_ss=70689&oh=00_AQJv8UkwWAuE7iP4urXNand1ExqjLeoNlGDYY-qEhYmpdQ&oe=6AA2D70D";
+  "https://scontent.cdninstagram.com/v/t51.71878-15/796641279_1388252672753971_1669868412018179825_n.jpg?stp=cmp1_dst-jpg_e35_s640x640_tt6&_nc_cat=111&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=csclNU-lUiMQ7kNvwEl4MII&_nc_oc=AdrF8NzmfH8VbalmuY7g57aQCoZQ3f375WNEjWf-KRIJ_tD1-9ONtgHWSvv8QODJhiI&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&_nc_gid=Su1LdBNClrHQkuSxY1qxAw&_nc_ss=70689&oh=00_AQKPCP989E_d1ODPyUtjMW3N_yLQCmtTheZvlX8e5FOG1w&oe=6AA30F4D";
 
 export default function Home() {
   const [isInstagramOpen, setIsInstagramOpen] = useState(false);
@@ -105,7 +105,13 @@ export default function Home() {
               <UserRound size={15} />
               Developer Dian Nurwahid
             </span>
-            <a href="https://diannurwahid.com">diannurwahid.com</a>
+            <div className="hero-instagram-slot">
+              <div className="instagram-arrow-label">
+                <MoveDownRight size={17} />
+                Like & follow developer
+              </div>
+              <InstagramEmbed className="instagram-embed hero-instagram" />
+            </div>
           </div>
         </div>
         <VideoGenerator />
@@ -182,13 +188,16 @@ export default function Home() {
           <a href="https://www.instagram.com/p2k_uad/?hl=id" target="_blank" rel="noopener noreferrer">
             Info P2K UAD
           </a>
-          <a href="https://diannurwahid.com">diannurwahid.com</a>
           <a href="https://instagram.com/denzhang1">
             <AtSign size={17} />
             @denzhang1
           </a>
         </div>
         <div className="developer-instagram">
+          <div className="instagram-arrow-label">
+            <MoveDownRight size={17} />
+            Like & follow developer
+          </div>
           <InstagramEmbed />
         </div>
       </section>
@@ -257,17 +266,18 @@ function InstagramEmbed({ className = "instagram-embed" }) {
         />
       </div>
       <div className="instagram-content">
-        <div className="instagram-source">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={instagramIconUrl} alt="" />
-          <span>Instagram</span>
-        </div>
-        <strong>Dian Nurwahid (@denzhang1) - reel Instagram</strong>
+        <strong>Dian Nurwahid (@denzhang1) • Instagram reel</strong>
         <em>
-          2 likes, 0 comments - denzhang1 pada September 5, 2026:
+          73 likes, 4 comments - denzhang1 on September 5, 2026:
           "Assalamualaikum Warahmatullahi Wabarakatuh, Dahlan Muda Berkarya
           Wujudkan Transformasi Berkemajuan."
         </em>
+        <div className="instagram-source">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={instagramIconUrl} alt="" />
+          <span>Dian Nurwahid</span>
+          <span>5 Sep 2026</span>
+        </div>
       </div>
     </a>
   );
