@@ -384,6 +384,11 @@ export default function VideoGenerator() {
                 <div>
                   <strong>Bagikan video</strong>
                   <span>{downloadBlob ? "Versi Full HD siap dibagikan." : "Preview siap. Full HD tetap tersedia setelah dirender."}</span>
+                  {downloadBlob ? (
+                    <small className="ios-download-note">
+                      iPhone: jika tidak muncul di Galeri, cek Files &gt; Downloads lalu pilih Share &gt; Save Video.
+                    </small>
+                  ) : null}
                 </div>
                 <div className="share-actions">
                   <button type="button" onClick={() => shareVideo("Instagram Post")}>

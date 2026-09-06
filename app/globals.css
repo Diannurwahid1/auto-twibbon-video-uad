@@ -713,6 +713,14 @@ p {
   line-height: 1.45;
 }
 
+.ios-download-note {
+  display: block;
+  color: #8a5a3d;
+  font-size: 0.74rem;
+  font-weight: 650;
+  line-height: 1.45;
+}
+
 .share-actions {
   flex-wrap: wrap;
   gap: 8px;
