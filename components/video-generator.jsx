@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Check,
   CircleAlert,
+  Copy,
   X,
   Download,
   Expand,
@@ -51,6 +52,10 @@ export default function VideoGenerator() {
   const [status, setStatus] = useState("Upload foto, atur posisi, lalu generate video HD.");
   const [error, setError] = useState("");
   const [floatingAlert, setFloatingAlert] = useState("");
+  const [captionName, setCaptionName] = useState("");
+  const [captionProgram, setCaptionProgram] = useState("");
+  const [captionFaculty, setCaptionFaculty] = useState("");
+  const [isCaptionCopied, setIsCaptionCopied] = useState(false);
   const isRendering = Boolean(renderMode);
 
   const loadingText = useMemo(() => {
@@ -60,6 +65,16 @@ export default function VideoGenerator() {
     );
     return LOADING_MESSAGES[index] ?? LOADING_MESSAGES[0];
   }, [progress]);
+
+  const generatedCaption = useMemo(
+    () =>
+      buildP2kCaption({
+        name: captionName,
+        program: captionProgram,
+        faculty: captionFaculty,
+      }),
+    [captionName, captionProgram, captionFaculty],
+  );
 
   useEffect(() => () => {
     workerRef.current?.terminate();
@@ -249,6 +264,16 @@ export default function VideoGenerator() {
     }
   }
 
+  async function copyCaption() {
+    try {
+      await navigator.clipboard.writeText(generatedCaption);
+      setIsCaptionCopied(true);
+      window.setTimeout(() => setIsCaptionCopied(false), 2200);
+    } catch {
+      window.prompt("Salin caption ini:", generatedCaption);
+    }
+  }
+
   const hasShareableVideo = Boolean(downloadBlob);
 
   return (
@@ -374,6 +399,51 @@ export default function VideoGenerator() {
                     Bagikan
                   </button>
                 </div>
+              </div>
+            ) : null}
+
+            {downloadBlob ? (
+              <div className="caption-card">
+                <div className="caption-card-head">
+                  <div>
+                    <strong>Caption P2K otomatis</strong>
+                    <span>Isi nama, prodi, dan fakultas. Format mengikuti p2k_uad.</span>
+                  </div>
+                  <button type="button" onClick={copyCaption}>
+                    {isCaptionCopied ? <Check size={16} /> : <Copy size={16} />}
+                    {isCaptionCopied ? "Tersalin" : "Copy Caption"}
+                  </button>
+                </div>
+                <div className="caption-fields">
+                  <label>
+                    <span>Nama</span>
+                    <input
+                      type="text"
+                      value={captionName}
+                      onChange={(event) => setCaptionName(event.target.value)}
+                      placeholder="Nama kamu"
+                    />
+                  </label>
+                  <label>
+                    <span>Prodi</span>
+                    <input
+                      type="text"
+                      value={captionProgram}
+                      onChange={(event) => setCaptionProgram(event.target.value)}
+                      placeholder="Contoh: Manajemen"
+                    />
+                  </label>
+                  <label>
+                    <span>Fakultas</span>
+                    <input
+                      type="text"
+                      value={captionFaculty}
+                      onChange={(event) => setCaptionFaculty(event.target.value)}
+                      placeholder="Contoh: Ekonomi dan Bisnis"
+                    />
+                  </label>
+                </div>
+                <pre>{generatedCaption}</pre>
               </div>
             ) : null}
 
@@ -533,6 +603,35 @@ function triggerDownload(url, filename) {
   document.body.appendChild(link);
   link.click();
   link.remove();
+}
+
+function buildP2kCaption({ name, program, faculty }) {
+  const cleanName = name.trim() || "[Nama]";
+  const cleanProgram = program.trim() || "[Nama prodi]";
+  const cleanFaculty = faculty.trim() || "[Nama Fakultas]";
+
+  return `Assalamualaikum Warahmatullahi Wabarakatuh,
+"Dahlan Muda Berkarya Wujudkan Transformasi Berkemajuan"
+
+Hallo Semuanya Perkenalkan, saya ${cleanName} dari Prodi ${cleanProgram} Fakultas ${cleanFaculty}, Universitas Ahmad Dahlan.
+
+Penuh rasa bangga dan antusias, saya siap bertumbuh di Program Pengenalan Kampus (P2K) PRAKARSA 2026
+
+Bersama seluruh Dahlan Muda dari berbagai penjuru, saya percaya bahwa asa yang disatukan akan menumbuhkan karya-karya yang bermakna.
+
+🗣️ "Satukan Asa, Ciptakan Karya, Dahlan Muda Bertalenta"
+
+Wassalamualaikum Warahmatullahi Wabarakatuh.
+
+@p2k_uad
+@klik_uad
+@[Akun sosial media P2K Fakultas]
+
+#weareuad
+#P2KUAD2026
+#P2KPRAKARSA2026
+#DahlanMudaBertalenta
+#UAD2026`;
 }
 
 function clamp(value, min, max) {

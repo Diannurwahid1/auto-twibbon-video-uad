@@ -71,6 +71,7 @@ const instagramReelThumb =
 export default function Home() {
   const [isInstagramOpen, setIsInstagramOpen] = useState(false);
   const [showBrowserNotice, setShowBrowserNotice] = useState(false);
+  const [showCaptionAnnouncement, setShowCaptionAnnouncement] = useState(false);
   const [isAndroidDevice, setIsAndroidDevice] = useState(false);
   const [isLinkCopied, setIsLinkCopied] = useState(false);
 
@@ -78,8 +79,10 @@ export default function Home() {
     const userAgent = navigator.userAgent || "";
     const isInAppBrowser = /Instagram|FBAN|FBAV|FB_IAB|Line|TikTok/i.test(userAgent);
     const dismissed = sessionStorage.getItem("browser-notice-dismissed") === "true";
+    const captionDismissed = localStorage.getItem("caption-announcement-dismissed") === "true";
     setIsAndroidDevice(/Android/i.test(userAgent));
     if (isInAppBrowser && !dismissed) setShowBrowserNotice(true);
+    if (!captionDismissed) setShowCaptionAnnouncement(true);
   }, []);
 
   async function copyCurrentLink() {
@@ -107,6 +110,11 @@ export default function Home() {
   function dismissBrowserNotice() {
     sessionStorage.setItem("browser-notice-dismissed", "true");
     setShowBrowserNotice(false);
+  }
+
+  function dismissCaptionAnnouncement() {
+    localStorage.setItem("caption-announcement-dismissed", "true");
+    setShowCaptionAnnouncement(false);
   }
 
   return (
@@ -321,6 +329,34 @@ export default function Home() {
             iPhone: tap menu Instagram, pilih buka di browser luar, atau salin
             link lalu buka di Safari/Chrome.
           </small>
+        </div>
+      ) : null}
+
+      {showCaptionAnnouncement ? (
+        <div className="feature-announcement-backdrop" role="dialog" aria-label="Fitur baru auto generate caption">
+          <div className="feature-announcement glass-panel">
+            <button
+              className="feature-announcement-close"
+              type="button"
+              onClick={dismissCaptionAnnouncement}
+              aria-label="Tutup pengumuman"
+            >
+              <X size={16} />
+            </button>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/feature-caption-announcement.png" alt="" />
+            <div>
+              <span>Fitur baru</span>
+              <h2>Auto generate caption sesuai format p2k_uad.</h2>
+              <p>
+                Setelah video HD selesai, isi nama, prodi, dan fakultas. Caption
+                langsung siap dicopy untuk Instagram.
+              </p>
+              <button type="button" onClick={dismissCaptionAnnouncement}>
+                Coba sekarang
+              </button>
+            </div>
+          </div>
         </div>
       ) : null}
     </main>

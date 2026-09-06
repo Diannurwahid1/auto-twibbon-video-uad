@@ -783,6 +783,103 @@ p {
   font-weight: 850;
 }
 
+.caption-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+}
+
+.caption-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.caption-card-head > div {
+  display: grid;
+  gap: 4px;
+}
+
+.caption-card-head strong {
+  font-size: 0.95rem;
+}
+
+.caption-card-head span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.caption-card-head button,
+.feature-announcement button:not(.feature-announcement-close) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 13px;
+  color: #ffffff;
+  background: var(--orange);
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 850;
+}
+
+.caption-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.caption-fields label {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.caption-fields span {
+  color: #30343b;
+  font-size: 0.72rem;
+  font-weight: 850;
+}
+
+.caption-fields input {
+  width: 100%;
+  min-width: 0;
+  height: 40px;
+  padding: 0 11px;
+  color: #111318;
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  outline: 0;
+  font-size: 0.8rem;
+}
+
+.caption-fields input:focus {
+  border-color: rgba(255, 92, 22, 0.42);
+  box-shadow: 0 0 0 3px rgba(255, 92, 22, 0.1);
+}
+
+.caption-card pre {
+  max-height: 260px;
+  margin: 0;
+  overflow: auto;
+  white-space: pre-wrap;
+  color: #272c34;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px;
+  font: 600 0.76rem/1.55 var(--font-jakarta, inherit);
+}
+
 .editor-backdrop {
   position: fixed;
   inset: 0;
@@ -917,6 +1014,88 @@ p {
   color: #272c34;
   background: rgba(255, 255, 255, 0.86);
   border: 1px solid var(--line);
+}
+
+.feature-announcement-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 150;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(255, 255, 255, 0.56);
+  backdrop-filter: blur(18px);
+}
+
+.feature-announcement {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(180px, 0.8fr) minmax(0, 1fr);
+  gap: 18px;
+  align-items: center;
+  width: min(720px, 100%);
+  padding: 16px;
+  border-radius: 24px;
+  animation: alertIn 220ms ease-out both;
+}
+
+.feature-announcement > img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+}
+
+.feature-announcement > div {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.feature-announcement span {
+  width: fit-content;
+  padding: 7px 11px;
+  color: #bd3d0d;
+  background: rgba(255, 243, 236, 0.9);
+  border: 1px solid rgba(255, 92, 22, 0.14);
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 850;
+}
+
+.feature-announcement h2 {
+  margin: 0;
+  font-size: clamp(1.45rem, 3vw, 2.2rem);
+  line-height: 1.12;
+}
+
+.feature-announcement p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.feature-announcement button:not(.feature-announcement-close) {
+  width: fit-content;
+  min-height: 44px;
+  padding: 0 16px;
+}
+
+.feature-announcement-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  color: #30343b;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  cursor: pointer;
 }
 
 .editor-modal {
@@ -1645,6 +1824,24 @@ p {
   .browser-notice-actions button {
     flex-basis: 100%;
   }
+
+  .feature-announcement {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    width: min(390px, 100%);
+    max-height: calc(100dvh - 28px);
+    overflow: auto;
+    padding: 14px;
+  }
+
+  .feature-announcement > img {
+    width: min(100%, 230px);
+    justify-self: center;
+  }
+
+  .feature-announcement button:not(.feature-announcement-close) {
+    width: 100%;
+  }
 }
 
 @media (max-width: 480px) {
@@ -1726,6 +1923,24 @@ p {
   .download-ready,
   .share-actions button {
     flex: 1 1 100%;
+  }
+
+  .caption-card-head,
+  .browser-notice-actions {
+    flex-direction: column;
+  }
+
+  .caption-card-head button {
+    width: 100%;
+  }
+
+  .caption-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .caption-card pre {
+    max-height: 220px;
+    font-size: 0.72rem;
   }
 
   .developer-section,
