@@ -238,8 +238,7 @@ export default function VideoGenerator() {
         } else {
           setDownloadUrl((current) => replaceObjectUrl(current, url));
           setDownloadBlob(blob);
-          triggerDownload(url, "twibbon-p2k-prakarsa-uad-2026-full-hd.mp4");
-          setStatus("Video Full HD selesai. Download otomatis dimulai.");
+          setStatus("Video Full HD selesai. Klik Unduh HD Lagi kalau download belum muncul.");
         }
       }
     };
@@ -417,14 +416,14 @@ export default function VideoGenerator() {
                 Preview
               </button>
               {downloadUrl ? (
-                <a
+                <button
                   className="download-ready"
-                  href={downloadUrl}
-                  download="twibbon-p2k-prakarsa-uad-2026-full-hd.mp4"
+                  type="button"
+                  onClick={() => triggerDownload(downloadUrl, "twibbon-p2k-prakarsa-uad-2026-full-hd.mp4")}
                 >
                   <Download size={17} />
-                  Unduh Full HD
-                </a>
+                  Unduh HD Lagi
+                </button>
               ) : (
                 <button
                   className="primary-tool-action"
@@ -433,7 +432,7 @@ export default function VideoGenerator() {
                   disabled={!previewUrl || isRendering}
                 >
                   <Download size={17} />
-                  Unduh Full HD
+                  Generate HD
                 </button>
               )}
               <button type="button" onClick={resetAll} disabled={isRendering || !photoFile}>
