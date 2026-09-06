@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@vercel/analytics": "^2.0.1",
     "lucide-react": "latest",
     "mediabunny": "^1.55.7",
     "next": "latest",
