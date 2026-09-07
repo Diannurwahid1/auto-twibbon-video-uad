@@ -71,7 +71,7 @@ const instagramReelThumb =
 export default function Home() {
   const [isInstagramOpen, setIsInstagramOpen] = useState(false);
   const [showBrowserNotice, setShowBrowserNotice] = useState(false);
-  const [showCaptionAnnouncement, setShowCaptionAnnouncement] = useState(false);
+  const [showThankYouAnnouncement, setShowThankYouAnnouncement] = useState(false);
   const [isAndroidDevice, setIsAndroidDevice] = useState(false);
   const [isLinkCopied, setIsLinkCopied] = useState(false);
 
@@ -79,10 +79,9 @@ export default function Home() {
     const userAgent = navigator.userAgent || "";
     const isInAppBrowser = /Instagram|FBAN|FBAV|FB_IAB|Line|TikTok/i.test(userAgent);
     const dismissed = sessionStorage.getItem("browser-notice-dismissed") === "true";
-    const captionDismissed = localStorage.getItem("caption-announcement-dismissed") === "true";
     setIsAndroidDevice(/Android/i.test(userAgent));
     if (isInAppBrowser && !dismissed) setShowBrowserNotice(true);
-    if (!captionDismissed) setShowCaptionAnnouncement(true);
+    setShowThankYouAnnouncement(true);
   }, []);
 
   async function copyCurrentLink() {
@@ -112,9 +111,8 @@ export default function Home() {
     setShowBrowserNotice(false);
   }
 
-  function dismissCaptionAnnouncement() {
-    localStorage.setItem("caption-announcement-dismissed", "true");
-    setShowCaptionAnnouncement(false);
+  function dismissThankYouAnnouncement() {
+    setShowThankYouAnnouncement(false);
   }
 
   return (
@@ -332,28 +330,34 @@ export default function Home() {
         </div>
       ) : null}
 
-      {showCaptionAnnouncement ? (
-        <div className="feature-announcement-backdrop" role="dialog" aria-label="Fitur baru auto generate caption">
-          <div className="feature-announcement glass-panel">
+      {showThankYouAnnouncement ? (
+        <div className="feature-announcement-backdrop" role="dialog" aria-label="Ucapan terima kasih untuk maba P2K Prakarsa UAD 2026">
+          <div className="feature-announcement thank-you-announcement glass-panel">
             <button
               className="feature-announcement-close"
               type="button"
-              onClick={dismissCaptionAnnouncement}
+              onClick={dismissThankYouAnnouncement}
               aria-label="Tutup pengumuman"
             >
               <X size={16} />
             </button>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/feature-caption-announcement.png" alt="" />
+            <img src="/thank-you-announcement.png" alt="" />
             <div>
-              <span>Fitur baru</span>
-              <h2>Auto generate caption sesuai format p2k_uad.</h2>
+              <span>Terima kasih</span>
+              <h2>1 hari tools ini digunakan oleh banyak maba UAD.</h2>
               <p>
-                Setelah video HD selesai, isi nama, prodi, dan fakultas. Caption
-                langsung siap dicopy untuk Instagram.
+                Terima kasih kepada seluruh maba yang sudah menggunakan dan
+                berpartisipasi dalam Twibbon P2K Prakarsa UAD 2026. Saya Dian
+                Nurwahid, maba Prodi Manajemen 2026, ikut senang melihat teman-teman
+                ikut meramaikan.
               </p>
-              <button type="button" onClick={dismissCaptionAnnouncement}>
-                Coba sekarang
+              <div className="announcement-metrics" aria-label="Statistik satu hari">
+                <strong>1.422 visitors</strong>
+                <strong>3.101 page views</strong>
+              </div>
+              <button type="button" onClick={dismissThankYouAnnouncement}>
+                Lanjut buat twibbon
               </button>
             </div>
           </div>
