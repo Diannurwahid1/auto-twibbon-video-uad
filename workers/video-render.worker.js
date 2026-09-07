@@ -133,7 +133,7 @@ async function pumpVideo(track, source, renderer, duration) {
 
   for await (const sample of sink.samples()) {
     const frame = sample.toVideoFrame();
-    renderer.draw(frame, sample.timestamp);
+    renderer.draw(frame, frameIndex / 30);
     frame.close();
     await source.add(sample.timestamp, sample.duration, {
       keyFrame: frameIndex % 60 === 0,
