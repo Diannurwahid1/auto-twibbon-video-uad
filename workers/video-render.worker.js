@@ -28,6 +28,7 @@ const MODES = {
 };
 
 let templateBufferPromise;
+const PHOTO_KEY_START_SECONDS = 17;
 
 self.onmessage = async ({ data }) => {
   if (data.type !== "render") return;
@@ -132,7 +133,7 @@ async function pumpVideo(track, source, renderer, duration) {
 
   for await (const sample of sink.samples()) {
     const frame = sample.toVideoFrame();
-    renderer.draw(frame);
+    renderer.draw(frame, sample.timestamp);
     frame.close();
     await source.add(sample.timestamp, sample.duration, {
       keyFrame: frameIndex % 60 === 0,
@@ -217,12 +218,14 @@ function createWebGlRenderer(canvas, photo, width, height, placement) {
   gl.uniform1i(gl.getUniformLocation(program, "u_photo"), 0);
   const videoTexture = createTexture(gl, 1);
   gl.uniform1i(gl.getUniformLocation(program, "u_video"), 1);
+  const timeLocation = gl.getUniformLocation(program, "u_time");
+  gl.uniform1f(gl.getUniformLocation(program, "u_key_start"), PHOTO_KEY_START_SECONDS);
   gl.viewport(0, 0, width, height);
   const frameCanvas = new OffscreenCanvas(width, height);
   const frameContext = frameCanvas.getContext("2d", { alpha: false });
 
   return {
-    draw(frame) {
+    draw(frame, timestamp) {
       gl.activeTexture(gl.TEXTURE1);
       gl.bindTexture(gl.TEXTURE_2D, videoTexture);
       try {
@@ -231,6 +234,7 @@ function createWebGlRenderer(canvas, photo, width, height, placement) {
         frameContext.drawImage(frame, 0, 0, width, height);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, frameCanvas);
       }
+      gl.uniform1f(timeLocation, timestamp);
       gl.drawArrays(gl.TRIANGLES, 0, 6);
       gl.finish();
     },
@@ -316,6 +320,8 @@ const FRAGMENT_SHADER_WEBGL2 = `#version 300 es
 precision mediump float;
 uniform sampler2D u_photo;
 uniform sampler2D u_video;
+uniform float u_time;
+uniform float u_key_start;
 in vec2 v_uv;
 out vec4 outColor;
 vec2 chroma(vec3 color) {
@@ -327,6 +333,10 @@ vec2 chroma(vec3 color) {
 void main() {
   vec3 photo = texture(u_photo, v_uv).rgb;
   vec3 video = texture(u_video, v_uv).rgb;
+  if (u_time < u_key_start) {
+    outColor = vec4(video, 1.0);
+    return;
+  }
   vec3 key = vec3(0.384, 1.0, 0.325);
   float chromaDistance = distance(chroma(video), chroma(key));
   float templateAlpha = smoothstep(0.11, 0.27, chromaDistance);
@@ -346,6 +356,8 @@ const FRAGMENT_SHADER_WEBGL1 = `
 precision mediump float;
 uniform sampler2D u_photo;
 uniform sampler2D u_video;
+uniform float u_time;
+uniform float u_key_start;
 varying vec2 v_uv;
 vec2 chroma(vec3 color) {
   return vec2(
@@ -356,6 +368,10 @@ vec2 chroma(vec3 color) {
 void main() {
   vec3 photo = texture2D(u_photo, v_uv).rgb;
   vec3 video = texture2D(u_video, v_uv).rgb;
+  if (u_time < u_key_start) {
+    gl_FragColor = vec4(video, 1.0);
+    return;
+  }
   vec3 key = vec3(0.384, 1.0, 0.325);
   float chromaDistance = distance(chroma(video), chroma(key));
   float templateAlpha = smoothstep(0.11, 0.27, chromaDistance);
