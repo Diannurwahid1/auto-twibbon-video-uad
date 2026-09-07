@@ -7,6 +7,7 @@ import {
   Copy,
   X,
   Download,
+  ExternalLink,
   Expand,
   ImageUp,
   Loader2,
@@ -42,6 +43,7 @@ export default function VideoGenerator() {
   const dragRef = useRef(null);
   const workerRef = useRef(null);
   const [photoFile, setPhotoFile] = useState(null);
+  const [photoBuffer, setPhotoBuffer] = useState(null);
   const [photoUrl, setPhotoUrl] = useState("");
   const [downloadUrl, setDownloadUrl] = useState("");
   const [downloadBlob, setDownloadBlob] = useState(null);
@@ -56,6 +58,9 @@ export default function VideoGenerator() {
   const [captionProgram, setCaptionProgram] = useState("");
   const [captionFaculty, setCaptionFaculty] = useState("");
   const [isCaptionCopied, setIsCaptionCopied] = useState(false);
+  const [showRenderBrowserNotice, setShowRenderBrowserNotice] = useState(false);
+  const [isAndroidDevice, setIsAndroidDevice] = useState(false);
+  const [isRenderLinkCopied, setIsRenderLinkCopied] = useState(false);
   const isRendering = Boolean(renderMode);
 
   const loadingText = useMemo(() => {
@@ -81,6 +86,10 @@ export default function VideoGenerator() {
   }, []);
 
   useEffect(() => {
+    setIsAndroidDevice(/Android/i.test(navigator.userAgent || ""));
+  }, []);
+
+  useEffect(() => {
     if (!isEditorOpen) return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -101,6 +110,7 @@ export default function VideoGenerator() {
     if (file.size > MAX_PHOTO_SIZE) {
       resetOutputs();
       setPhotoFile(null);
+      setPhotoBuffer(null);
       setPlacement(DEFAULT_PLACEMENT);
       setPhotoUrl((current) => replaceObjectUrl(current, ""));
       setFloatingAlert("Ukuran foto maksimal 5MB. Kompres atau pilih foto lain dulu.");
@@ -109,11 +119,25 @@ export default function VideoGenerator() {
       return;
     }
     resetOutputs();
-    setPlacement(DEFAULT_PLACEMENT);
-    setPhotoUrl((current) => replaceObjectUrl(current, URL.createObjectURL(file)));
-    setPhotoFile(file);
-    setIsEditorOpen(true);
-    setStatus("Foto masuk. Geser foto di dalam frame, lalu generate HD.");
+    setShowRenderBrowserNotice(false);
+
+    try {
+      const buffer = await file.arrayBuffer();
+      setPlacement(DEFAULT_PLACEMENT);
+      setPhotoUrl((current) => replaceObjectUrl(current, URL.createObjectURL(file)));
+      setPhotoFile(file);
+      setPhotoBuffer(buffer);
+      setIsEditorOpen(true);
+      setStatus("Foto masuk. Geser foto di dalam frame, lalu generate HD.");
+    } catch {
+      setPhotoFile(null);
+      setPhotoBuffer(null);
+      setPhotoUrl((current) => replaceObjectUrl(current, ""));
+      setStatus("Foto gagal dibaca browser.");
+      setError("Browser gagal membaca foto. Buka lewat Chrome/Safari lalu pilih foto dari Galeri lokal.");
+      setShowRenderBrowserNotice(true);
+      if (inputRef.current) inputRef.current.value = "";
+    }
   }
 
   function updatePlacement(key, value) {
@@ -126,6 +150,7 @@ export default function VideoGenerator() {
   function resetOutputs() {
     setError("");
     setFloatingAlert("");
+    setShowRenderBrowserNotice(false);
     setProgress(0);
     setDownloadUrl((current) => replaceObjectUrl(current, ""));
     setDownloadBlob(null);
@@ -135,6 +160,7 @@ export default function VideoGenerator() {
   function resetAll() {
     resetOutputs();
     setPhotoFile(null);
+    setPhotoBuffer(null);
     setPlacement(DEFAULT_PLACEMENT);
     setIsEditorOpen(false);
     setPhotoUrl((current) => replaceObjectUrl(current, ""));
@@ -175,24 +201,26 @@ export default function VideoGenerator() {
     setStatus("Posisi foto disimpan. Klik Generate HD untuk membuat video final.");
   }
 
-  async function renderVideo(mode, file = photoFile, nextPlacement = placement) {
-    if (!file || isRendering) return;
+  async function renderVideo(mode, nextPlacement = placement) {
+    if (!photoFile || !photoBuffer || isRendering) return;
     if (!("VideoEncoder" in window) || !("VideoDecoder" in window)) {
       setError("Browser belum mendukung render video cepat. Gunakan Chrome atau Edge terbaru.");
+      setShowRenderBrowserNotice(true);
       return;
     }
 
     setRenderMode(mode);
     setError("");
+    setShowRenderBrowserNotice(false);
     setProgress(1);
     setStatus("Membuat video Full HD...");
 
     try {
       const worker = ensureWorker();
-      const photoBuffer = await file.arrayBuffer();
+      const renderBuffer = photoBuffer.slice(0);
       worker.postMessage(
-        { type: "render", mode, photo: photoBuffer, placement: nextPlacement },
-        [photoBuffer],
+        { type: "render", mode, photo: renderBuffer, placement: nextPlacement },
+        [renderBuffer],
       );
     } catch (renderError) {
       finishWithError(renderError.message);
@@ -233,6 +261,29 @@ export default function VideoGenerator() {
     setError(message || "Render gagal. Silakan coba lagi.");
     setStatus("Render berhenti sebelum selesai.");
     setRenderMode("");
+    setShowRenderBrowserNotice(true);
+  }
+
+  async function copyRenderLink() {
+    const url = window.location.href;
+    try {
+      await navigator.clipboard.writeText(url);
+      setIsRenderLinkCopied(true);
+      window.setTimeout(() => setIsRenderLinkCopied(false), 2200);
+    } catch {
+      window.prompt("Salin link ini lalu buka di Chrome/Safari:", url);
+    }
+  }
+
+  function openRenderInBrowser() {
+    const url = window.location.href;
+    if (isAndroidDevice) {
+      const parsed = new URL(url);
+      const fallback = encodeURIComponent(url);
+      window.location.href = `intent://${parsed.host}${parsed.pathname}${parsed.search}${parsed.hash}#Intent;scheme=${parsed.protocol.replace(":", "")};package=com.android.chrome;S.browser_fallback_url=${fallback};end`;
+      return;
+    }
+    copyRenderLink();
   }
 
   async function shareVideo(target = "Instagram") {
@@ -545,6 +596,37 @@ export default function VideoGenerator() {
           <button type="button" onClick={() => setFloatingAlert("")} aria-label="Tutup notifikasi">
             <X size={16} />
           </button>
+        </div>
+      ) : null}
+
+      {showRenderBrowserNotice ? (
+        <div className="browser-notice render-browser-notice" role="dialog" aria-label="Buka di browser utama untuk generate HD">
+          <button
+            className="browser-notice-close"
+            type="button"
+            onClick={() => setShowRenderBrowserNotice(false)}
+            aria-label="Tutup pemberitahuan"
+          >
+            <X size={16} />
+          </button>
+          <strong>Buka di Chrome/Safari dulu</strong>
+          <p>
+            Browser ini membatasi akses foto atau render video. Untuk Generate HD
+            yang lebih lancar, buka halaman ini di browser utama lalu upload foto lagi.
+          </p>
+          <div className="browser-notice-actions">
+            <button type="button" onClick={openRenderInBrowser}>
+              <ExternalLink size={16} />
+              {isAndroidDevice ? "Buka di Chrome" : "Buka Chrome/Safari"}
+            </button>
+            <button type="button" onClick={copyRenderLink}>
+              <Copy size={16} />
+              {isRenderLinkCopied ? "Link Tersalin" : "Salin Link"}
+            </button>
+          </div>
+          <small>
+            Setelah terbuka di browser utama, pilih ulang foto dari Galeri lokal.
+          </small>
         </div>
       ) : null}
     </section>

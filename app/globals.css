@@ -1016,6 +1016,10 @@ p {
   border: 1px solid var(--line);
 }
 
+.render-browser-notice {
+  bottom: 18px;
+}
+
 .feature-announcement-backdrop {
   position: fixed;
   inset: 0;
@@ -1853,6 +1857,10 @@ p {
 
   .browser-notice-actions button {
     flex-basis: 100%;
+  }
+
+  .render-browser-notice {
+    bottom: 84px;
   }
 
   .feature-announcement {
