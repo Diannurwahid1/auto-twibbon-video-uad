@@ -13,8 +13,18 @@ import {
 } from "mediabunny";
 
 const MODES = {
-  preview: { width: 360, height: 450, bitrate: 700_000 },
-  hd: { width: 1080, height: 1350, bitrate: 8_000_000 },
+  preview: {
+    variants: [
+      { width: 360, height: 450, bitrate: 700_000, hardwareAcceleration: "no-preference" },
+    ],
+  },
+  hd: {
+    variants: [
+      { width: 1080, height: 1350, bitrate: 6_000_000, hardwareAcceleration: "no-preference", fullCodecString: "avc1.42e028" },
+      { width: 1080, height: 1350, bitrate: 4_500_000, hardwareAcceleration: "prefer-software", fullCodecString: "avc1.42e028" },
+      { width: 720, height: 900, bitrate: 3_200_000, hardwareAcceleration: "no-preference", fullCodecString: "avc1.42e01f" },
+    ],
+  },
 };
 
 let templateBufferPromise;
@@ -35,66 +45,89 @@ self.onmessage = async ({ data }) => {
 };
 
 async function renderVideo(photoBuffer, mode, placement = {}) {
-  const config = MODES[mode];
-  if (!config) throw new Error("Mode render tidak valid.");
+  const modeConfig = MODES[mode];
+  if (!modeConfig) throw new Error("Mode render tidak valid.");
   if (!("VideoEncoder" in self) || !("VideoDecoder" in self)) {
     throw new Error("Browser belum mendukung WebCodecs. Gunakan Chrome atau Edge terbaru.");
   }
 
   postProgress(2, "Membuka template langsung di perangkat...");
-  const [templateBuffer, photoBitmap] = await Promise.all([
-    getTemplateBuffer(),
-    createImageBitmap(new Blob([photoBuffer])),
-  ]);
-  const input = new Input({ source: new BlobSource(new Blob([templateBuffer])), formats: [MP4] });
-  const videoTrack = await input.getPrimaryVideoTrack();
-  const audioTrack = await input.getPrimaryAudioTrack();
-  if (!videoTrack) throw new Error("Track video template tidak ditemukan.");
-  if (!(await videoTrack.canDecode())) throw new Error("Codec template tidak dapat didekode browser ini.");
+  const templateBuffer = await getTemplateBuffer();
+  let lastError = null;
 
-  const duration = (await input.getDurationFromMetadata()) ?? (await input.computeDuration());
-  const canvas = new OffscreenCanvas(config.width, config.height);
-  const renderer = createWebGlRenderer(canvas, photoBitmap, config.width, config.height, placement);
-  const target = new BufferTarget();
-  const output = new Output({
-    format: new Mp4OutputFormat({ fastStart: "in-memory" }),
-    target,
-  });
-  const videoSource = new CanvasSource(canvas, {
-    codec: "avc",
-    quality: new Quality({ bitrate: config.bitrate }),
-    hardwareAcceleration: "prefer-hardware",
-    latencyMode: "realtime",
-    keyFrameInterval: 2,
-  });
-  output.addVideoTrack(videoSource, { frameRate: 30 });
-
-  let audioSource = null;
-  if (audioTrack && (await audioTrack.getCodec()) === "aac") {
-    audioSource = new EncodedAudioPacketSource("aac");
-    output.addAudioTrack(audioSource);
+  for (let index = 0; index < modeConfig.variants.length; index += 1) {
+    const config = modeConfig.variants[index];
+    try {
+      if (index > 0) {
+        postProgress(4, "Encoder HP belum cocok, mencoba mode kompatibel...");
+      }
+      return await renderAttempt(templateBuffer, photoBuffer, config, placement);
+    } catch (error) {
+      lastError = error;
+      if (!isRecoverableRenderError(error) || index === modeConfig.variants.length - 1) throw error;
+    }
   }
 
-  await output.start();
-  postProgress(5, "WebCodecs hardware acceleration aktif...");
+  throw lastError ?? new Error("Render gagal. Coba gunakan Chrome atau Edge terbaru.");
+}
 
-  const videoTask = pumpVideo(videoTrack, videoSource, renderer, duration);
-  const audioTask = audioSource
-    ? copyAudio(audioTrack, audioSource)
-    : Promise.resolve();
-  await Promise.all([videoTask, audioTask]);
-  postProgress(97, "Mediabunny sedang menyusun MP4 final...");
-  await output.finalize();
+async function renderAttempt(templateBuffer, photoBuffer, config, placement) {
+  const photoBitmap = await createImageBitmap(new Blob([photoBuffer]));
+  const input = new Input({ source: new BlobSource(new Blob([templateBuffer])), formats: [MP4] });
+  let renderer = null;
 
-  renderer.dispose();
-  photoBitmap.close();
-  input.dispose();
-  if (!target.buffer) throw new Error("File MP4 tidak berhasil dibuat.");
-  return target.buffer;
+  try {
+    const videoTrack = await input.getPrimaryVideoTrack();
+    const audioTrack = await input.getPrimaryAudioTrack();
+    if (!videoTrack) throw new Error("Track video template tidak ditemukan.");
+    if (!(await videoTrack.canDecode())) throw new Error("Codec template tidak dapat didekode browser ini.");
+
+    const duration = (await input.getDurationFromMetadata()) ?? (await input.computeDuration());
+    const canvas = new OffscreenCanvas(config.width, config.height);
+    renderer = createWebGlRenderer(canvas, photoBitmap, config.width, config.height, placement);
+    const target = new BufferTarget();
+    const output = new Output({
+      format: new Mp4OutputFormat({ fastStart: "in-memory" }),
+      target,
+    });
+    const videoSource = new CanvasSource(canvas, {
+      codec: "avc",
+      quality: new Quality({ bitrate: config.bitrate }),
+      hardwareAcceleration: config.hardwareAcceleration,
+      fullCodecString: config.fullCodecString,
+      latencyMode: "realtime",
+      keyFrameInterval: 2,
+    });
+    output.addVideoTrack(videoSource, { frameRate: 30 });
+
+    let audioSource = null;
+    if (audioTrack && (await audioTrack.getCodec()) === "aac") {
+      audioSource = new EncodedAudioPacketSource("aac");
+      output.addAudioTrack(audioSource);
+    }
+
+    await output.start();
+    postProgress(5, "Mediabunny dan WebCodecs mulai merender...");
+
+    const videoTask = pumpVideo(videoTrack, videoSource, renderer, duration);
+    const audioTask = audioSource
+      ? copyAudio(audioTrack, audioSource)
+      : Promise.resolve();
+    await Promise.all([videoTask, audioTask]);
+    postProgress(97, "Mediabunny sedang menyusun MP4 final...");
+    await output.finalize();
+
+    if (!target.buffer) throw new Error("File MP4 tidak berhasil dibuat.");
+    return target.buffer;
+  } finally {
+    renderer?.dispose();
+    photoBitmap.close();
+    input.dispose();
+  }
 }
 
 async function pumpVideo(track, source, renderer, duration) {
-  const sink = new VideoSampleSink(track, { hardwareAcceleration: "prefer-hardware" });
+  const sink = new VideoSampleSink(track, { hardwareAcceleration: "no-preference" });
   let frameIndex = 0;
 
   for await (const sample of sink.samples()) {
@@ -122,24 +155,34 @@ async function copyAudio(track, source) {
 }
 
 function getTemplateBuffer() {
-  templateBufferPromise ??= fetch("/twibbon.mp4").then((response) => {
+  templateBufferPromise ??= fetch("/twibbon.mp4", { cache: "force-cache" }).then((response) => {
     if (!response.ok) throw new Error("Template video gagal dimuat.");
     return response.arrayBuffer();
+  }).catch((error) => {
+    templateBufferPromise = undefined;
+    throw error;
   });
   return templateBufferPromise;
 }
 
 function createWebGlRenderer(canvas, photo, width, height, placement) {
-  const gl = canvas.getContext("webgl2", {
+  const contextOptions = {
     alpha: false,
     antialias: false,
     depth: false,
     preserveDrawingBuffer: true,
     powerPreference: "high-performance",
-  });
-  if (!gl) throw new Error("WebGL 2 tidak tersedia di browser ini.");
+  };
+  const gl2 = canvas.getContext("webgl2", contextOptions);
+  const gl = gl2 ?? canvas.getContext("webgl", contextOptions) ?? canvas.getContext("experimental-webgl", contextOptions);
+  if (!gl) throw new Error("WebGL tidak tersedia di browser ini. Buka lewat Chrome terbaru.");
 
-  const program = createProgram(gl, VERTEX_SHADER, FRAGMENT_SHADER);
+  const isWebGl2 = Boolean(gl2);
+  const program = createProgram(
+    gl,
+    isWebGl2 ? VERTEX_SHADER_WEBGL2 : VERTEX_SHADER_WEBGL1,
+    isWebGl2 ? FRAGMENT_SHADER_WEBGL2 : FRAGMENT_SHADER_WEBGL1,
+  );
   gl.useProgram(program);
   const vertices = new Float32Array([
     -1, -1, 0, 0, 1, -1, 1, 0, -1, 1, 0, 1,
@@ -175,12 +218,19 @@ function createWebGlRenderer(canvas, photo, width, height, placement) {
   const videoTexture = createTexture(gl, 1);
   gl.uniform1i(gl.getUniformLocation(program, "u_video"), 1);
   gl.viewport(0, 0, width, height);
+  const frameCanvas = new OffscreenCanvas(width, height);
+  const frameContext = frameCanvas.getContext("2d", { alpha: false });
 
   return {
     draw(frame) {
       gl.activeTexture(gl.TEXTURE1);
       gl.bindTexture(gl.TEXTURE_2D, videoTexture);
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, frame);
+      try {
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, frame);
+      } catch {
+        frameContext.drawImage(frame, 0, 0, width, height);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, frameCanvas);
+      }
       gl.drawArrays(gl.TRIANGLES, 0, 6);
       gl.finish();
     },
@@ -234,11 +284,26 @@ function clamp(value, min, max) {
 }
 
 function readableError(error) {
-  if (error instanceof Error && error.message) return error.message;
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  if (/fetch|network|template/i.test(message)) {
+    return "Template video gagal dimuat. Coba buka lewat Chrome/browser utama dan pastikan koneksi stabil.";
+  }
+  if (/encoder configuration|not supported|VideoEncoder|avc1|codec/i.test(message)) {
+    return "Encoder video di browser HP ini belum mendukung render HD. Sistem sudah mencoba mode kompatibel; coba buka lewat Chrome terbaru atau gunakan HP/laptop lain.";
+  }
+  if (/webgl/i.test(message)) {
+    return "Browser ini belum mendukung WebGL untuk render cepat. Buka lewat Chrome terbaru atau browser utama.";
+  }
+  if (message) return message;
   return "Render gagal. Coba gunakan Chrome atau Edge terbaru.";
 }
 
-const VERTEX_SHADER = `#version 300 es
+function isRecoverableRenderError(error) {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  return /encoder configuration|not supported|VideoEncoder|avc1|codec|EncodingError|OperationError/i.test(message);
+}
+
+const VERTEX_SHADER_WEBGL2 = `#version 300 es
 in vec2 a_position;
 in vec2 a_uv;
 out vec2 v_uv;
@@ -247,7 +312,7 @@ void main() {
   v_uv = a_uv;
 }`;
 
-const FRAGMENT_SHADER = `#version 300 es
+const FRAGMENT_SHADER_WEBGL2 = `#version 300 es
 precision mediump float;
 uniform sampler2D u_photo;
 uniform sampler2D u_video;
@@ -266,4 +331,33 @@ void main() {
   float chromaDistance = distance(chroma(video), chroma(key));
   float templateAlpha = smoothstep(0.11, 0.27, chromaDistance);
   outColor = vec4(mix(photo, video, templateAlpha), 1.0);
+}`;
+
+const VERTEX_SHADER_WEBGL1 = `
+attribute vec2 a_position;
+attribute vec2 a_uv;
+varying vec2 v_uv;
+void main() {
+  gl_Position = vec4(a_position, 0.0, 1.0);
+  v_uv = a_uv;
+}`;
+
+const FRAGMENT_SHADER_WEBGL1 = `
+precision mediump float;
+uniform sampler2D u_photo;
+uniform sampler2D u_video;
+varying vec2 v_uv;
+vec2 chroma(vec3 color) {
+  return vec2(
+    -0.168736 * color.r - 0.331264 * color.g + 0.5 * color.b,
+     0.5 * color.r - 0.418688 * color.g - 0.081312 * color.b
+  );
+}
+void main() {
+  vec3 photo = texture2D(u_photo, v_uv).rgb;
+  vec3 video = texture2D(u_video, v_uv).rgb;
+  vec3 key = vec3(0.384, 1.0, 0.325);
+  float chromaDistance = distance(chroma(video), chroma(key));
+  float templateAlpha = smoothstep(0.11, 0.27, chromaDistance);
+  gl_FragColor = vec4(mix(photo, video, templateAlpha), 1.0);
 }`;
