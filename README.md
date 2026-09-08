@@ -9,6 +9,25 @@ Project ini dibuat oleh Dian Nurwahid, maba Prodi Manajemen UAD 2026, sebagai
 alat bantu agar proses yang sebelumnya perlu edit manual di CapCut bisa
 dilakukan dari satu halaman web yang ringan dan mudah dipakai.
 
+## Live Website
+
+Production URL:
+
+**[auto-twibbon-p2k-uad.diannurwahid.com](https://auto-twibbon-p2k-uad.diannurwahid.com/)**
+
+## Preview
+
+Tampilan landing page dibuat clean, light, dan fokus pada alur utama: upload
+foto, atur frame, generate video HD, lalu unduh atau bagikan.
+
+### Desktop
+
+<img src="docs/live-preview.png" alt="Desktop preview P2K Tools Auto Editor" width="100%" />
+
+### Mobile
+
+<img src="docs/mobile-preview.png" alt="Mobile preview P2K Tools Auto Editor" width="360" />
+
 ## Highlights
 
 - Upload foto JPG, PNG, atau WEBP dengan batas maksimal 5MB.
