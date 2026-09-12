@@ -449,14 +449,15 @@ void main() {
     return;
   }
   float greenDominance = video.g - max(video.r, video.b);
-  float greenish = smoothstep(-0.015, 0.07, greenDominance) * smoothstep(0.30, 0.48, video.g);
+  float greenish = smoothstep(-0.08, 0.045, greenDominance) * smoothstep(0.22, 0.42, video.g);
   float chromaDistance = distance(chroma(video), chroma(u_key_color));
   float chromaAlpha = smoothstep(u_threshold_min, u_threshold_max, chromaDistance);
   float templateAlpha = mix(1.0, chromaAlpha, greenish);
   float redOrangeInk = smoothstep(0.05, 0.16, video.r - video.g) * smoothstep(0.18, 0.38, video.r);
-  float greenYellowFill = smoothstep(0.30, 0.52, video.g) * smoothstep(-0.12, 0.08, video.g - video.r) * (1.0 - redOrangeInk);
-  float greenBias = smoothstep(0.045, 0.18, greenDominance) * smoothstep(0.28, 0.48, video.g);
-  templateAlpha = min(templateAlpha, 1.0 - max(greenBias, greenYellowFill));
+  float greenYellowFill = smoothstep(0.24, 0.43, video.g) * smoothstep(-0.18, 0.035, video.g - video.r) * smoothstep(-0.08, 0.22, video.g - video.b) * (1.0 - redOrangeInk);
+  float greenBias = smoothstep(-0.015, 0.12, greenDominance) * smoothstep(0.22, 0.44, video.g);
+  float spillMask = smoothstep(0.08, 0.34, max(greenBias, greenYellowFill));
+  templateAlpha = min(templateAlpha, 1.0 - spillMask);
   outColor = vec4(mix(photo, video, templateAlpha), 1.0);
 }`;
 
@@ -499,13 +500,14 @@ void main() {
     return;
   }
   float greenDominance = video.g - max(video.r, video.b);
-  float greenish = smoothstep(-0.015, 0.07, greenDominance) * smoothstep(0.30, 0.48, video.g);
+  float greenish = smoothstep(-0.08, 0.045, greenDominance) * smoothstep(0.22, 0.42, video.g);
   float chromaDistance = distance(chroma(video), chroma(u_key_color));
   float chromaAlpha = smoothstep(u_threshold_min, u_threshold_max, chromaDistance);
   float templateAlpha = mix(1.0, chromaAlpha, greenish);
   float redOrangeInk = smoothstep(0.05, 0.16, video.r - video.g) * smoothstep(0.18, 0.38, video.r);
-  float greenYellowFill = smoothstep(0.30, 0.52, video.g) * smoothstep(-0.12, 0.08, video.g - video.r) * (1.0 - redOrangeInk);
-  float greenBias = smoothstep(0.045, 0.18, greenDominance) * smoothstep(0.28, 0.48, video.g);
-  templateAlpha = min(templateAlpha, 1.0 - max(greenBias, greenYellowFill));
+  float greenYellowFill = smoothstep(0.24, 0.43, video.g) * smoothstep(-0.18, 0.035, video.g - video.r) * smoothstep(-0.08, 0.22, video.g - video.b) * (1.0 - redOrangeInk);
+  float greenBias = smoothstep(-0.015, 0.12, greenDominance) * smoothstep(0.22, 0.44, video.g);
+  float spillMask = smoothstep(0.08, 0.34, max(greenBias, greenYellowFill));
+  templateAlpha = min(templateAlpha, 1.0 - spillMask);
   gl_FragColor = vec4(mix(photo, video, templateAlpha), 1.0);
 }`;

@@ -964,7 +964,7 @@ async function detectGreenScreen(videoUrl) {
 
   const threshold = Math.max(0.035, strongest.ratio * 0.42);
   const activeFrames = frames.filter((frame) => frame.ratio >= threshold);
-  const start = Math.max(0, activeFrames[0].time - Math.max(1.5, step * 2));
+  const start = Math.max(0, activeFrames[0].time - Math.max(4.5, step * 7));
   const end = Math.min(duration, activeFrames[activeFrames.length - 1].time + Math.max(1, step * 1.5));
   const keyColor = rgbToHex(strongest.key.r, strongest.key.g, strongest.key.b);
   const bounds = expandBounds(strongest.bounds, 0.06);
@@ -978,8 +978,8 @@ async function detectGreenScreen(videoUrl) {
       end: roundTime(end),
       keyColor,
       bounds,
-      sensitivity: 0.18,
-      smoothness: 0.24,
+      sensitivity: 0.22,
+      smoothness: 0.32,
     },
   };
 }
@@ -1059,8 +1059,8 @@ async function createTransparentFrame(video, time, keyColor, meta, bounds) {
     const y = Math.floor(pixelIndex / width) / height;
     const insideBounds = !bounds || (x >= bounds.left && x <= bounds.right && y >= bounds.top && y <= bounds.bottom);
     const redOrangeInk = r - g > 14 && r > 92;
-    const greenYellowFill = g > 78 && g >= r - 22 && g > b * 1.05 && !redOrangeInk;
-    if (insideBounds && (isGreenPixel(r, g, b) || greenYellowFill || (g > r * 1.02 && g > b * 1.12 && colorDistance({ r, g, b }, key) < 122))) {
+    const greenYellowFill = g > 66 && g >= r - 36 && g > b * 0.96 && !redOrangeInk;
+    if (insideBounds && (isGreenPixel(r, g, b) || greenYellowFill || (g > r * 0.96 && g > b * 1.02 && colorDistance({ r, g, b }, key) < 152))) {
       imageData.data[index + 3] = 0;
     }
   }
