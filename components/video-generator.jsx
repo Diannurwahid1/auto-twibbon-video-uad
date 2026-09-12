@@ -28,6 +28,14 @@ const DEFAULT_PLACEMENT = {
 };
 
 const MAX_PHOTO_SIZE = 5 * 1024 * 1024;
+const MAX_TEMPLATE_SIZE = 80 * 1024 * 1024;
+const DEFAULT_CHROMA = {
+  start: 17,
+  end: 9999,
+  keyColor: "#62ff53",
+  sensitivity: 0.11,
+  smoothness: 0.16,
+};
 
 const LOADING_MESSAGES = [
   "Sebentar ya, twibbon P2K kamu sedang dirapikan.",
@@ -39,12 +47,20 @@ const LOADING_MESSAGES = [
 
 export default function VideoGenerator() {
   const inputRef = useRef(null);
+  const templateInputRef = useRef(null);
   const editorFrameRef = useRef(null);
   const dragRef = useRef(null);
   const workerRef = useRef(null);
+  const [activeMode, setActiveMode] = useState("p2k");
   const [photoFile, setPhotoFile] = useState(null);
   const [photoBuffer, setPhotoBuffer] = useState(null);
   const [photoUrl, setPhotoUrl] = useState("");
+  const [templateFile, setTemplateFile] = useState(null);
+  const [templateBuffer, setTemplateBuffer] = useState(null);
+  const [templateUrl, setTemplateUrl] = useState("");
+  const [customFrameUrl, setCustomFrameUrl] = useState("");
+  const [chroma, setChroma] = useState(DEFAULT_CHROMA);
+  const [isDetectingTemplate, setIsDetectingTemplate] = useState(false);
   const [downloadUrl, setDownloadUrl] = useState("");
   const [downloadBlob, setDownloadBlob] = useState(null);
   const [placement, setPlacement] = useState(DEFAULT_PLACEMENT);
@@ -62,14 +78,26 @@ export default function VideoGenerator() {
   const [isAndroidDevice, setIsAndroidDevice] = useState(false);
   const [isRenderLinkCopied, setIsRenderLinkCopied] = useState(false);
   const isRendering = Boolean(renderMode);
+  const isCustomMode = activeMode === "custom";
+  const canGenerate = photoFile && photoBuffer && (!isCustomMode || templateBuffer);
 
   const loadingText = useMemo(() => {
     const index = Math.min(
       LOADING_MESSAGES.length - 1,
       Math.floor((progress / 100) * LOADING_MESSAGES.length),
     );
+    if (isCustomMode) {
+      const customMessages = [
+        "Template custom kamu sedang diproses langsung di browser.",
+        "Area green screen dipakai sebagai ruang foto otomatis.",
+        "Foto, audio, dan video sedang disusun jadi MP4.",
+        "Jika browser menolak, coba Chrome desktop atau HP lain.",
+        "Hasil akhir tetap siap diunduh dan dibagikan.",
+      ];
+      return customMessages[index] ?? customMessages[0];
+    }
     return LOADING_MESSAGES[index] ?? LOADING_MESSAGES[0];
-  }, [progress]);
+  }, [isCustomMode, progress]);
 
   const generatedCaption = useMemo(
     () =>
@@ -140,6 +168,65 @@ export default function VideoGenerator() {
     }
   }
 
+  async function handleTemplateChange(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("video/") || !file.name.toLowerCase().endsWith(".mp4")) {
+      setFloatingAlert("Template harus berupa video MP4.");
+      if (templateInputRef.current) templateInputRef.current.value = "";
+      return;
+    }
+    if (file.size > MAX_TEMPLATE_SIZE) {
+      setFloatingAlert("Ukuran template maksimal 80MB agar tetap aman di browser.");
+      if (templateInputRef.current) templateInputRef.current.value = "";
+      return;
+    }
+
+    resetOutputs();
+    setActiveMode("custom");
+    setIsDetectingTemplate(true);
+    setStatus("Membaca template dan mendeteksi green screen...");
+    setError("");
+
+    try {
+      const buffer = await file.arrayBuffer();
+      const url = URL.createObjectURL(file);
+      setTemplateFile(file);
+      setTemplateBuffer(buffer);
+      setTemplateUrl((current) => replaceObjectUrl(current, url));
+
+      const detected = await detectGreenScreen(url);
+      setChroma(detected.chroma);
+      setCustomFrameUrl((current) => replaceObjectUrl(current, detected.frameUrl));
+      setStatus(`Green screen terdeteksi mulai ${formatSeconds(detected.chroma.start)} sampai ${formatSeconds(detected.chroma.end)}.`);
+    } catch (detectError) {
+      setChroma({ ...DEFAULT_CHROMA, start: 0, end: 9999 });
+      setCustomFrameUrl((current) => replaceObjectUrl(current, ""));
+      setError(detectError?.message || "Green screen belum bisa dideteksi otomatis. Atur waktunya manual.");
+      setStatus("Template masuk, tetapi timing green screen perlu dicek manual.");
+    } finally {
+      setIsDetectingTemplate(false);
+    }
+  }
+
+  function switchMode(nextMode) {
+    if (nextMode === activeMode || isRendering) return;
+    resetOutputs();
+    setActiveMode(nextMode);
+    setStatus(
+      nextMode === "custom"
+        ? "Upload template MP4 green screen, lalu upload foto."
+        : "Upload foto, atur posisi, lalu generate video HD.",
+    );
+  }
+
+  function updateChroma(key, value) {
+    setDownloadUrl((current) => replaceObjectUrl(current, ""));
+    setDownloadBlob(null);
+    setProgress(0);
+    setChroma((current) => ({ ...current, [key]: key === "keyColor" ? value : Number(value) }));
+  }
+
   function updatePlacement(key, value) {
     setDownloadUrl((current) => replaceObjectUrl(current, ""));
     setDownloadBlob(null);
@@ -161,10 +248,16 @@ export default function VideoGenerator() {
     resetOutputs();
     setPhotoFile(null);
     setPhotoBuffer(null);
+    setTemplateFile(null);
+    setTemplateBuffer(null);
+    setTemplateUrl((current) => replaceObjectUrl(current, ""));
+    setCustomFrameUrl((current) => replaceObjectUrl(current, ""));
+    setChroma(DEFAULT_CHROMA);
     setPlacement(DEFAULT_PLACEMENT);
     setIsEditorOpen(false);
     setPhotoUrl((current) => replaceObjectUrl(current, ""));
     if (inputRef.current) inputRef.current.value = "";
+    if (templateInputRef.current) templateInputRef.current.value = "";
   }
 
   function startDrag(event) {
@@ -202,7 +295,7 @@ export default function VideoGenerator() {
   }
 
   async function renderVideo(mode, nextPlacement = placement) {
-    if (!photoFile || !photoBuffer || isRendering) return;
+    if (!canGenerate || isRendering) return;
     if (!("VideoEncoder" in window) || !("VideoDecoder" in window)) {
       setError("Browser belum mendukung render video cepat. Gunakan Chrome atau Edge terbaru.");
       setShowRenderBrowserNotice(true);
@@ -218,9 +311,18 @@ export default function VideoGenerator() {
     try {
       const worker = ensureWorker();
       const renderBuffer = photoBuffer.slice(0);
+      const renderTemplateBuffer = isCustomMode ? templateBuffer.slice(0) : null;
+      const transferList = renderTemplateBuffer ? [renderBuffer, renderTemplateBuffer] : [renderBuffer];
       worker.postMessage(
-        { type: "render", mode, photo: renderBuffer, placement: nextPlacement },
-        [renderBuffer],
+        {
+          type: "render",
+          mode,
+          photo: renderBuffer,
+          template: renderTemplateBuffer,
+          placement: nextPlacement,
+          chroma: isCustomMode ? chroma : DEFAULT_CHROMA,
+        },
+        transferList,
       );
     } catch (renderError) {
       finishWithError(renderError.message);
@@ -292,12 +394,12 @@ export default function VideoGenerator() {
 
     const file = new File(
       [blob],
-      "twibbon-p2k-prakarsa-uad-2026-full-hd.mp4",
+      isCustomMode ? "auto-twibbon-video-custom-full-hd.mp4" : "twibbon-p2k-prakarsa-uad-2026-full-hd.mp4",
       { type: "video/mp4" },
     );
     const shareData = {
-      title: "Twibbon Video P2K Prakarsa UAD 2026",
-      text: `Twibbon Video P2K siap dibagikan ke ${target}. Dibuat di diannurwahid.com`,
+      title: isCustomMode ? "Auto Twibbon Video" : "Twibbon Video P2K Prakarsa UAD 2026",
+      text: `${isCustomMode ? "Video twibbon custom" : "Twibbon Video P2K"} siap dibagikan ke ${target}. Dibuat di diannurwahid.com`,
       files: [file],
     };
 
@@ -326,17 +428,112 @@ export default function VideoGenerator() {
   }
 
   const hasShareableVideo = Boolean(downloadBlob);
+  const frameSrc = isCustomMode && customFrameUrl ? customFrameUrl : "/editor-frame.png";
+  const stepItems = isCustomMode ? ["Template", "Foto", "Atur", "Unduh"] : ["Upload", "Atur", "Generate", "Unduh"];
 
   return (
     <section className="hero-tool" id="generator" aria-label="Generator Twibbon Video P2K">
       <div className="tool-panel glass-panel">
         <div className="tool-header">
-          <span>Twibbon Video P2K</span>
-          <strong>Upload, atur, generate, unduh.</strong>
+          <div>
+            <span>{isCustomMode ? "Custom Template" : "Twibbon Video P2K"}</span>
+            <strong>
+              {isCustomMode
+                ? "Upload template, deteksi green screen, generate."
+                : "Upload, atur, generate, unduh."}
+            </strong>
+          </div>
+          <div className="mode-tabs" role="tablist" aria-label="Mode generator">
+            <button
+              className={activeMode === "p2k" ? "active" : ""}
+              type="button"
+              role="tab"
+              aria-selected={activeMode === "p2k"}
+              onClick={() => switchMode("p2k")}
+              disabled={isRendering}
+            >
+              P2K Cepat
+            </button>
+            <button
+              className={activeMode === "custom" ? "active" : ""}
+              type="button"
+              role="tab"
+              aria-selected={activeMode === "custom"}
+              onClick={() => switchMode("custom")}
+              disabled={isRendering}
+            >
+              Custom Template
+            </button>
+          </div>
         </div>
 
         <div className="tool-grid">
           <div className="upload-side">
+            {isCustomMode ? (
+              <>
+                <input
+                  ref={templateInputRef}
+                  id="custom-template-upload"
+                  type="file"
+                  accept="video/mp4"
+                  onChange={handleTemplateChange}
+                />
+                <label className="real-upload template-upload" htmlFor="custom-template-upload">
+                  <Play size={34} fill="currentColor" />
+                  <span>
+                    <strong>{templateFile ? "Ganti Template" : "Upload Template"}</strong>
+                    <small>{templateFile ? templateFile.name : "MP4 green screen - maks. 80MB"}</small>
+                  </span>
+                </label>
+                <div className="chroma-panel">
+                  <div className="placement-title">
+                    <CircleAlert size={17} />
+                    <strong>Green Screen</strong>
+                  </div>
+                  <p>
+                    {isDetectingTemplate
+                      ? "Sedang auto-detect area green screen..."
+                      : templateFile
+                        ? "Timing terdeteksi otomatis. Kamu tetap bisa koreksi manual."
+                        : "Upload template MP4 dengan area green screen."}
+                  </p>
+                  <div className="chroma-grid">
+                    <label>
+                      <span>Mulai</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.1"
+                        value={Number.isFinite(chroma.start) ? chroma.start : 0}
+                        onChange={(event) => updateChroma("start", event.target.value)}
+                        disabled={isRendering}
+                      />
+                    </label>
+                    <label>
+                      <span>Selesai</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.1"
+                        value={Number.isFinite(chroma.end) && chroma.end < 9999 ? chroma.end : ""}
+                        placeholder="akhir"
+                        onChange={(event) => updateChroma("end", event.target.value || 9999)}
+                        disabled={isRendering}
+                      />
+                    </label>
+                    <label>
+                      <span>Key</span>
+                      <input
+                        type="color"
+                        value={chroma.keyColor}
+                        onChange={(event) => updateChroma("keyColor", event.target.value)}
+                        disabled={isRendering}
+                      />
+                    </label>
+                  </div>
+                </div>
+              </>
+            ) : null}
             <input
               ref={inputRef}
               id="real-photo-upload"
@@ -390,7 +587,7 @@ export default function VideoGenerator() {
                     <img src={photoUrl} alt="Posisi foto sebelum generate HD" />
                   ) : null}
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img className="template-frame" src="/editor-frame.png" alt="" />
+                  <img className="template-frame" src={frameSrc} alt="" />
                   {!photoUrl ? <Play size={40} fill="currentColor" /> : null}
                 </div>
               )}
@@ -399,10 +596,14 @@ export default function VideoGenerator() {
 
             <div className="progress-box" aria-live="polite">
               <div className="step-track">
-                {["Upload", "Atur", "Generate", "Unduh"].map((item, index) => (
+                {stepItems.map((item, index) => (
                   <span
                     className={
-                      progress >= index * 28 || (index < 2 && photoFile) ? "active" : ""
+                      progress >= index * 28
+                      || (isCustomMode && index === 0 && templateFile)
+                      || (index < 2 && photoFile)
+                        ? "active"
+                        : ""
                     }
                     key={item}
                   >
@@ -416,7 +617,11 @@ export default function VideoGenerator() {
               <strong>{status}</strong>
               <p>
                 {isRendering ? <Loader2 size={15} /> : <Play size={15} fill="currentColor" />}
-                {isRendering ? loadingText : "Generate HD sekali, hasilnya siap diunduh dan dibagikan."}
+                {isRendering
+                  ? loadingText
+                  : isCustomMode
+                    ? "Custom template diproses di browser. Koreksi timing jika deteksi belum pas."
+                    : "Generate HD sekali, hasilnya siap diunduh dan dibagikan."}
               </p>
               {error ? <small>{error}</small> : null}
             </div>
@@ -448,7 +653,10 @@ export default function VideoGenerator() {
                   <button
                     className="primary-tool-action"
                     type="button"
-                    onClick={() => triggerDownload(downloadUrl, "twibbon-p2k-prakarsa-uad-2026-full-hd.mp4")}
+                    onClick={() => triggerDownload(
+                      downloadUrl,
+                      isCustomMode ? "auto-twibbon-video-custom-full-hd.mp4" : "twibbon-p2k-prakarsa-uad-2026-full-hd.mp4",
+                    )}
                   >
                     <Download size={16} />
                     Unduh HD
@@ -508,13 +716,13 @@ export default function VideoGenerator() {
                   className="primary-tool-action"
                   type="button"
                   onClick={() => renderVideo("hd")}
-                  disabled={!photoFile || isRendering}
+                  disabled={!canGenerate || isRendering || isDetectingTemplate}
                 >
                   <Download size={17} />
                   Generate HD
                 </button>
               ) : null}
-              <button type="button" onClick={resetAll} disabled={isRendering || !photoFile}>
+              <button type="button" onClick={resetAll} disabled={isRendering || (!photoFile && !templateFile)}>
                 <RotateCcw size={17} />
                 Reset
               </button>
@@ -545,7 +753,7 @@ export default function VideoGenerator() {
                 <img src={photoUrl} alt="Foto yang sedang diatur" draggable="false" />
               ) : null}
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img className="template-frame" src="/editor-frame.png" alt="" draggable="false" />
+              <img className="template-frame" src={frameSrc} alt="" draggable="false" />
               <div className="drag-hint">
                 <Move size={16} />
                 Drag foto
@@ -680,6 +888,178 @@ function triggerDownload(url, filename) {
   document.body.appendChild(link);
   link.click();
   link.remove();
+}
+
+async function detectGreenScreen(videoUrl) {
+  const video = document.createElement("video");
+  video.src = videoUrl;
+  video.muted = true;
+  video.playsInline = true;
+  video.preload = "metadata";
+  await waitForVideo(video, "loadedmetadata");
+
+  const duration = Number.isFinite(video.duration) ? video.duration : 0;
+  if (!duration) throw new Error("Durasi template tidak terbaca.");
+
+  const sampleCount = clamp(Math.ceil(duration * 2), 10, 48);
+  const step = duration / Math.max(1, sampleCount - 1);
+  const scanCanvas = document.createElement("canvas");
+  const scanWidth = 160;
+  const scanHeight = Math.max(120, Math.round(scanWidth * (video.videoHeight / Math.max(1, video.videoWidth))));
+  scanCanvas.width = scanWidth;
+  scanCanvas.height = scanHeight;
+  const scanContext = scanCanvas.getContext("2d", { willReadFrequently: true });
+  const frames = [];
+
+  for (let index = 0; index < sampleCount; index += 1) {
+    const time = Math.min(duration - 0.05, index * step);
+    await seekVideo(video, Math.max(0, time));
+    scanContext.drawImage(video, 0, 0, scanWidth, scanHeight);
+    const analysis = analyzeGreenFrame(scanContext.getImageData(0, 0, scanWidth, scanHeight));
+    frames.push({ time, ...analysis });
+  }
+
+  const strongest = frames.reduce((best, frame) => (frame.ratio > best.ratio ? frame : best), frames[0]);
+  if (!strongest || strongest.ratio < 0.035) {
+    throw new Error("Green screen belum terdeteksi otomatis. Atur timing manual atau pakai template dengan hijau yang lebih jelas.");
+  }
+
+  const threshold = Math.max(0.035, strongest.ratio * 0.42);
+  const activeFrames = frames.filter((frame) => frame.ratio >= threshold);
+  const start = Math.max(0, activeFrames[0].time - step * 0.5);
+  const end = Math.min(duration, activeFrames[activeFrames.length - 1].time + step * 0.75);
+  const keyColor = rgbToHex(strongest.key.r, strongest.key.g, strongest.key.b);
+  const frameUrl = await createTransparentFrame(video, strongest.time, keyColor);
+
+  return {
+    frameUrl,
+    chroma: {
+      start: roundTime(start),
+      end: roundTime(end),
+      keyColor,
+      sensitivity: DEFAULT_CHROMA.sensitivity,
+      smoothness: DEFAULT_CHROMA.smoothness,
+    },
+  };
+}
+
+function analyzeGreenFrame(imageData) {
+  const { data } = imageData;
+  let greenPixels = 0;
+  let red = 0;
+  let green = 0;
+  let blue = 0;
+
+  for (let index = 0; index < data.length; index += 4) {
+    const r = data[index];
+    const g = data[index + 1];
+    const b = data[index + 2];
+    if (isGreenPixel(r, g, b)) {
+      greenPixels += 1;
+      red += r;
+      green += g;
+      blue += b;
+    }
+  }
+
+  const totalPixels = data.length / 4;
+  const divisor = Math.max(1, greenPixels);
+  return {
+    ratio: greenPixels / totalPixels,
+    key: {
+      r: Math.round(red / divisor) || 98,
+      g: Math.round(green / divisor) || 255,
+      b: Math.round(blue / divisor) || 83,
+    },
+  };
+}
+
+async function createTransparentFrame(video, time, keyColor) {
+  await seekVideo(video, time);
+  const width = 540;
+  const height = 675;
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  context.drawImage(video, 0, 0, width, height);
+  const imageData = context.getImageData(0, 0, width, height);
+  const key = hexToRgb(keyColor);
+
+  for (let index = 0; index < imageData.data.length; index += 4) {
+    const r = imageData.data[index];
+    const g = imageData.data[index + 1];
+    const b = imageData.data[index + 2];
+    if (isGreenPixel(r, g, b) || colorDistance({ r, g, b }, key) < 105) {
+      imageData.data[index + 3] = 0;
+    }
+  }
+
+  context.putImageData(imageData, 0, 0);
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+  if (!blob) throw new Error("Preview template gagal dibuat.");
+  return URL.createObjectURL(blob);
+}
+
+function isGreenPixel(r, g, b) {
+  return g > 128 && g > r * 1.42 && g > b * 1.22 && g - Math.max(r, b) > 58;
+}
+
+function colorDistance(a, b) {
+  return Math.hypot(a.r - b.r, a.g - b.g, a.b - b.b);
+}
+
+function hexToRgb(hex) {
+  const normalized = String(hex).replace("#", "");
+  const value = /^[0-9a-fA-F]{6}$/.test(normalized) ? normalized : "62ff53";
+  const number = Number.parseInt(value, 16);
+  return {
+    r: (number >> 16) & 255,
+    g: (number >> 8) & 255,
+    b: number & 255,
+  };
+}
+
+function rgbToHex(r, g, b) {
+  return `#${[r, g, b].map((value) => Math.round(clamp(value, 0, 255)).toString(16).padStart(2, "0")).join("")}`;
+}
+
+function waitForVideo(video, eventName) {
+  return new Promise((resolve, reject) => {
+    const cleanup = () => {
+      video.removeEventListener(eventName, handleEvent);
+      video.removeEventListener("error", handleError);
+    };
+    const handleEvent = () => {
+      cleanup();
+      resolve();
+    };
+    const handleError = () => {
+      cleanup();
+      reject(new Error("Video template gagal dibaca browser."));
+    };
+    video.addEventListener(eventName, handleEvent, { once: true });
+    video.addEventListener("error", handleError, { once: true });
+  });
+}
+
+async function seekVideo(video, time) {
+  if (Math.abs(video.currentTime - time) < 0.04) return;
+  const promise = waitForVideo(video, "seeked");
+  video.currentTime = time;
+  await promise;
+}
+
+function roundTime(value) {
+  return Math.round(value * 10) / 10;
+}
+
+function formatSeconds(value) {
+  if (!Number.isFinite(value)) return "akhir";
+  const minutes = Math.floor(value / 60);
+  const seconds = Math.floor(value % 60).toString().padStart(2, "0");
+  const decimal = Math.round((value % 1) * 10);
+  return `${minutes}:${seconds}${decimal ? `.${decimal}` : ""}`;
 }
 
 function buildP2kCaption({ name, program, faculty }) {

@@ -28,13 +28,19 @@ const MODES = {
 };
 
 let templateBufferPromise;
-const PHOTO_KEY_START_SECONDS = 17;
+const DEFAULT_CHROMA = {
+  start: 17,
+  end: Number.POSITIVE_INFINITY,
+  keyColor: "#62ff53",
+  sensitivity: 0.11,
+  smoothness: 0.16,
+};
 
 self.onmessage = async ({ data }) => {
   if (data.type !== "render") return;
 
   try {
-    const result = await renderVideo(data.photo, data.mode, data.placement);
+    const result = await renderVideo(data.photo, data.mode, data.placement, data.template, data.chroma);
     self.postMessage({ type: "complete", mode: data.mode, buffer: result }, [result]);
   } catch (error) {
     console.error(error);
@@ -45,7 +51,7 @@ self.onmessage = async ({ data }) => {
   }
 };
 
-async function renderVideo(photoBuffer, mode, placement = {}) {
+async function renderVideo(photoBuffer, mode, placement = {}, customTemplateBuffer = null, chroma = {}) {
   const modeConfig = MODES[mode];
   if (!modeConfig) throw new Error("Mode render tidak valid.");
   if (!("VideoEncoder" in self) || !("VideoDecoder" in self)) {
@@ -53,7 +59,7 @@ async function renderVideo(photoBuffer, mode, placement = {}) {
   }
 
   postProgress(2, "Membuka template langsung di perangkat...");
-  const templateBuffer = await getTemplateBuffer();
+  const templateBuffer = customTemplateBuffer ?? await getTemplateBuffer();
   let lastError = null;
 
   for (let index = 0; index < modeConfig.variants.length; index += 1) {
@@ -62,7 +68,7 @@ async function renderVideo(photoBuffer, mode, placement = {}) {
       if (index > 0) {
         postProgress(4, "Encoder HP belum cocok, mencoba mode kompatibel...");
       }
-      return await renderAttempt(templateBuffer, photoBuffer, config, placement);
+      return await renderAttempt(templateBuffer, photoBuffer, config, placement, chroma);
     } catch (error) {
       lastError = error;
       if (!isRecoverableRenderError(error) || index === modeConfig.variants.length - 1) throw error;
@@ -72,7 +78,7 @@ async function renderVideo(photoBuffer, mode, placement = {}) {
   throw lastError ?? new Error("Render gagal. Coba gunakan Chrome atau Edge terbaru.");
 }
 
-async function renderAttempt(templateBuffer, photoBuffer, config, placement) {
+async function renderAttempt(templateBuffer, photoBuffer, config, placement, chroma) {
   const photoBitmap = await createImageBitmap(new Blob([photoBuffer]));
   const input = new Input({ source: new BlobSource(new Blob([templateBuffer])), formats: [MP4] });
   let renderer = null;
@@ -85,7 +91,7 @@ async function renderAttempt(templateBuffer, photoBuffer, config, placement) {
 
     const duration = (await input.getDurationFromMetadata()) ?? (await input.computeDuration());
     const canvas = new OffscreenCanvas(config.width, config.height);
-    renderer = createWebGlRenderer(canvas, photoBitmap, config.width, config.height, placement);
+    renderer = createWebGlRenderer(canvas, photoBitmap, config.width, config.height, placement, chroma);
     const target = new BufferTarget();
     const output = new Output({
       format: new Mp4OutputFormat({ fastStart: "in-memory" }),
@@ -166,7 +172,7 @@ function getTemplateBuffer() {
   return templateBufferPromise;
 }
 
-function createWebGlRenderer(canvas, photo, width, height, placement) {
+function createWebGlRenderer(canvas, photo, width, height, placement, chroma = {}) {
   const contextOptions = {
     alpha: false,
     antialias: false,
@@ -219,7 +225,12 @@ function createWebGlRenderer(canvas, photo, width, height, placement) {
   const videoTexture = createTexture(gl, 1);
   gl.uniform1i(gl.getUniformLocation(program, "u_video"), 1);
   const timeLocation = gl.getUniformLocation(program, "u_time");
-  gl.uniform1f(gl.getUniformLocation(program, "u_key_start"), PHOTO_KEY_START_SECONDS);
+  const chromaConfig = normalizeChromaConfig(chroma);
+  gl.uniform1f(gl.getUniformLocation(program, "u_key_start"), chromaConfig.start);
+  gl.uniform1f(gl.getUniformLocation(program, "u_key_end"), chromaConfig.end);
+  gl.uniform3fv(gl.getUniformLocation(program, "u_key_color"), chromaConfig.keyColor);
+  gl.uniform1f(gl.getUniformLocation(program, "u_threshold_min"), chromaConfig.sensitivity);
+  gl.uniform1f(gl.getUniformLocation(program, "u_threshold_max"), chromaConfig.sensitivity + chromaConfig.smoothness);
   gl.viewport(0, 0, width, height);
   const frameCanvas = new OffscreenCanvas(width, height);
   const frameContext = frameCanvas.getContext("2d", { alpha: false });
@@ -302,6 +313,33 @@ function readableError(error) {
   return "Render gagal. Coba gunakan Chrome atau Edge terbaru.";
 }
 
+function normalizeChromaConfig(chroma) {
+  const start = Math.max(0, Number(chroma.start ?? DEFAULT_CHROMA.start) || 0);
+  const rawEnd = Number(chroma.end ?? DEFAULT_CHROMA.end);
+  const end = Number.isFinite(rawEnd) ? Math.max(start, rawEnd) : DEFAULT_CHROMA.end;
+  const sensitivity = clamp(Number(chroma.sensitivity ?? DEFAULT_CHROMA.sensitivity) || DEFAULT_CHROMA.sensitivity, 0.02, 0.32);
+  const smoothness = clamp(Number(chroma.smoothness ?? DEFAULT_CHROMA.smoothness) || DEFAULT_CHROMA.smoothness, 0.02, 0.42);
+
+  return {
+    start,
+    end,
+    sensitivity,
+    smoothness,
+    keyColor: hexToRgb(chroma.keyColor ?? DEFAULT_CHROMA.keyColor),
+  };
+}
+
+function hexToRgb(hex) {
+  const normalized = String(hex).replace("#", "").trim();
+  const value = /^[0-9a-fA-F]{6}$/.test(normalized) ? normalized : DEFAULT_CHROMA.keyColor.replace("#", "");
+  const number = Number.parseInt(value, 16);
+  return new Float32Array([
+    ((number >> 16) & 255) / 255,
+    ((number >> 8) & 255) / 255,
+    (number & 255) / 255,
+  ]);
+}
+
 function isRecoverableRenderError(error) {
   const message = error instanceof Error ? error.message : String(error ?? "");
   return /encoder configuration|not supported|VideoEncoder|avc1|codec|EncodingError|OperationError/i.test(message);
@@ -322,6 +360,10 @@ uniform sampler2D u_photo;
 uniform sampler2D u_video;
 uniform float u_time;
 uniform float u_key_start;
+uniform float u_key_end;
+uniform vec3 u_key_color;
+uniform float u_threshold_min;
+uniform float u_threshold_max;
 in vec2 v_uv;
 out vec4 outColor;
 vec2 chroma(vec3 color) {
@@ -333,13 +375,12 @@ vec2 chroma(vec3 color) {
 void main() {
   vec3 photo = texture(u_photo, v_uv).rgb;
   vec3 video = texture(u_video, v_uv).rgb;
-  if (u_time < u_key_start) {
+  if (u_time < u_key_start || u_time > u_key_end) {
     outColor = vec4(video, 1.0);
     return;
   }
-  vec3 key = vec3(0.384, 1.0, 0.325);
-  float chromaDistance = distance(chroma(video), chroma(key));
-  float templateAlpha = smoothstep(0.11, 0.27, chromaDistance);
+  float chromaDistance = distance(chroma(video), chroma(u_key_color));
+  float templateAlpha = smoothstep(u_threshold_min, u_threshold_max, chromaDistance);
   outColor = vec4(mix(photo, video, templateAlpha), 1.0);
 }`;
 
@@ -358,6 +399,10 @@ uniform sampler2D u_photo;
 uniform sampler2D u_video;
 uniform float u_time;
 uniform float u_key_start;
+uniform float u_key_end;
+uniform vec3 u_key_color;
+uniform float u_threshold_min;
+uniform float u_threshold_max;
 varying vec2 v_uv;
 vec2 chroma(vec3 color) {
   return vec2(
@@ -368,12 +413,11 @@ vec2 chroma(vec3 color) {
 void main() {
   vec3 photo = texture2D(u_photo, v_uv).rgb;
   vec3 video = texture2D(u_video, v_uv).rgb;
-  if (u_time < u_key_start) {
+  if (u_time < u_key_start || u_time > u_key_end) {
     gl_FragColor = vec4(video, 1.0);
     return;
   }
-  vec3 key = vec3(0.384, 1.0, 0.325);
-  float chromaDistance = distance(chroma(video), chroma(key));
-  float templateAlpha = smoothstep(0.11, 0.27, chromaDistance);
+  float chromaDistance = distance(chroma(video), chroma(u_key_color));
+  float templateAlpha = smoothstep(u_threshold_min, u_threshold_max, chromaDistance);
   gl_FragColor = vec4(mix(photo, video, templateAlpha), 1.0);
 }`;

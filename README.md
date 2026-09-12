@@ -35,6 +35,8 @@ foto, atur frame, generate video HD, lalu unduh atau bagikan.
 - Generate video HD dengan suara template tetap aman.
 - Caption P2K otomatis yang bisa disesuaikan dengan nama, prodi, dan fakultas.
 - Tombol bagikan untuk Instagram Post, Reels, Story, dan unduh file HD.
+- Mode custom template untuk upload MP4 greenscreen sendiri, dengan deteksi
+  timing greenscreen otomatis sebagai titik awal dan kontrol koreksi manual.
 - Popup panduan browser jika pengguna membuka dari Instagram browser atau
   browser yang membatasi akses file.
 - Proses foto berjalan di browser pengguna, bukan dikirim ke server.
@@ -73,7 +75,7 @@ Project ini dibangun dengan fokus pada pengalaman pengguna yang cepat dan ringan
 | React | Komponen interaktif untuk editor, popup, dan state aplikasi. |
 | Mediabunny | Pemrosesan media MP4 langsung di browser. |
 | WebCodecs | Decode/encode video dengan dukungan browser modern. |
-| WebGL | Compositing frame dan foto secara cepat. |
+| WebGL | Compositing frame, chroma key, dan foto secara cepat. |
 | Vercel Analytics | Melihat jumlah pengunjung dan page views. |
 
 ## Privacy
