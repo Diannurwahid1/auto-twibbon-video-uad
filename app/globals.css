@@ -754,6 +754,10 @@ p {
     scale(var(--photo-scale));
 }
 
+.live-compose.contain-photo > img:not(.template-frame) {
+  object-fit: contain;
+}
+
 .template-frame {
   position: absolute;
   inset: 0;
@@ -1351,6 +1355,10 @@ p {
     translate(var(--photo-x), var(--photo-y))
     rotate(var(--photo-rotate))
     scale(var(--photo-scale));
+}
+
+.editor-frame.contain-photo img:not(.template-frame) {
+  object-fit: contain;
 }
 
 .drag-hint {

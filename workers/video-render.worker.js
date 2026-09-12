@@ -249,7 +249,23 @@ function createWebGlRenderer(canvas, photo, width, height, placement, chroma = {
   const offsetX = clamp(Number(placement.x) || 0, -0.28, 0.28) * width;
   const offsetY = clamp(Number(placement.y) || 0, -0.28, 0.28) * height;
   const rotation = clamp(Number(placement.rotation) || 0, -8, 8) * (Math.PI / 180);
-  const scale = Math.max(width / photo.width, height / photo.height) * userScale;
+  const shouldContainPhoto = placement.fit === "contain";
+  if (shouldContainPhoto) {
+    const backgroundScale = Math.max(width / photo.width, height / photo.height);
+    const backgroundWidth = photo.width * backgroundScale;
+    const backgroundHeight = photo.height * backgroundScale;
+    photoContext.save();
+    photoContext.filter = "blur(24px) saturate(1.08)";
+    photoContext.globalAlpha = 0.55;
+    photoContext.drawImage(photo, (width - backgroundWidth) / 2, (height - backgroundHeight) / 2, backgroundWidth, backgroundHeight);
+    photoContext.restore();
+    photoContext.fillStyle = "rgba(255,255,255,0.18)";
+    photoContext.fillRect(0, 0, width, height);
+  }
+  const baseScale = shouldContainPhoto
+    ? Math.min(width / photo.width, height / photo.height)
+    : Math.max(width / photo.width, height / photo.height);
+  const scale = baseScale * userScale;
   const drawWidth = photo.width * scale;
   const drawHeight = photo.height * scale;
   photoContext.translate(width / 2 + offsetX, height / 2 + offsetY);

@@ -366,7 +366,7 @@ export default function VideoGenerator() {
           mode,
           photo: renderBuffer,
           template: renderTemplateBuffer,
-          placement: nextPlacement,
+          placement: { ...nextPlacement, fit: isCustomMode ? "contain" : "cover" },
           chroma: isCustomMode ? chroma : DEFAULT_CHROMA,
         },
         transferList,
@@ -480,6 +480,8 @@ export default function VideoGenerator() {
     ? `${templateMeta.width} / ${templateMeta.height}`
     : "1080 / 1350";
   const frameAspectStyle = { aspectRatio: frameAspectRatio };
+  const composeClassName = isCustomMode ? "live-compose contain-photo" : "live-compose";
+  const editorFrameClassName = isCustomMode ? "editor-frame contain-photo" : "editor-frame";
   const stepItems = isCustomMode ? ["Template", "Foto", "Atur", "Unduh"] : ["Upload", "Atur", "Generate", "Unduh"];
 
   return (
@@ -656,7 +658,7 @@ export default function VideoGenerator() {
               {downloadUrl ? (
                 <video src={downloadUrl} controls playsInline />
               ) : (
-                <div className="live-compose" style={previewStyle(placement)}>
+                <div className={composeClassName} style={previewStyle(placement)}>
                   {photoUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={photoUrl} alt="Posisi foto sebelum generate HD" />
@@ -816,7 +818,7 @@ export default function VideoGenerator() {
             </div>
             <div
               ref={editorFrameRef}
-              className="editor-frame"
+              className={editorFrameClassName}
               style={{ ...previewStyle(placement), ...frameAspectStyle }}
               onPointerDown={startDrag}
               onPointerMove={moveDrag}
