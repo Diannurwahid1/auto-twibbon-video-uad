@@ -343,7 +343,7 @@ export default function Home() {
               <X size={16} />
             </button>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/thank-you-announcement.png" alt="" />
+            <img src="/feb-twibbon-announcement.png" alt="" />
             <div>
               <span>Update fitur</span>
               <h2>FEB Twibbon sekarang sudah tersedia.</h2>

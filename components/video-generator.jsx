@@ -247,13 +247,9 @@ export default function VideoGenerator() {
         ? "Template FEB sudah siap. Upload foto, atur posisi, lalu generate HD."
         : "Upload foto, atur posisi, lalu generate video HD.",
     );
-  }
-
-  function updateChroma(key, value) {
-    setDownloadUrl((current) => replaceObjectUrl(current, ""));
-    setDownloadBlob(null);
-    setProgress(0);
-    setChroma((current) => ({ ...current, [key]: key === "keyColor" ? value : Number(value) }));
+    if (nextMode === "feb" && !templateBuffer) {
+      void useFebTemplate({ silent: true });
+    }
   }
 
   function updatePlacement(key, value) {
@@ -277,12 +273,14 @@ export default function VideoGenerator() {
     resetOutputs();
     setPhotoFile(null);
     setPhotoBuffer(null);
-    setTemplateFile(null);
-    setTemplateBuffer(null);
-    setTemplateMeta(null);
-    setTemplateUrl((current) => replaceObjectUrl(current, ""));
-    setCustomFrameUrl((current) => replaceObjectUrl(current, ""));
-    setChroma(DEFAULT_CHROMA);
+    if (!isCustomMode) {
+      setTemplateFile(null);
+      setTemplateBuffer(null);
+      setTemplateMeta(null);
+      setTemplateUrl((current) => replaceObjectUrl(current, ""));
+      setCustomFrameUrl((current) => replaceObjectUrl(current, ""));
+      setChroma(DEFAULT_CHROMA);
+    }
     setPlacement(DEFAULT_PLACEMENT);
     setIsEditorOpen(false);
     setPhotoUrl((current) => replaceObjectUrl(current, ""));
@@ -483,7 +481,7 @@ export default function VideoGenerator() {
   const frameAspectStyle = { aspectRatio: frameAspectRatio };
   const composeClassName = isCustomMode ? "live-compose contain-photo" : "live-compose";
   const editorFrameClassName = isCustomMode ? "editor-frame contain-photo" : "editor-frame";
-  const stepItems = isCustomMode ? ["Template", "Foto", "Atur", "Unduh"] : ["Upload", "Atur", "Generate", "Unduh"];
+  const stepItems = ["Upload", "Atur", "Generate", "Unduh"];
 
   return (
     <section className="hero-tool" id="generator" aria-label="Generator Twibbon Video P2K">
@@ -523,84 +521,6 @@ export default function VideoGenerator() {
 
         <div className="tool-grid">
           <div className="upload-side">
-            {isCustomMode ? (
-              <>
-                <div className="custom-template-note">
-                  <strong>Template FEB sudah disiapkan.</strong>
-                  <span>
-                    Fokus mode ini khusus Twibbon Fakultas Ekonomi dan Bisnis.
-                    Template dari tools sudah dikunci agar posisi, rasio, dan
-                    green screen lebih rapi.
-                  </span>
-                  <button type="button" onClick={useFebTemplate} disabled={isRendering || isDetectingTemplate}>
-                    {isDetectingTemplate ? <Loader2 size={16} /> : <Play size={16} fill="currentColor" />}
-                    Muat Ulang Template FEB
-                  </button>
-                </div>
-                <div className="real-upload template-upload fixed-template-card">
-                  {isDetectingTemplate ? <Loader2 className="spin-icon" size={34} /> : <Play size={34} fill="currentColor" />}
-                  <span>
-                    <strong>
-                      {isDetectingTemplate
-                        ? "Memproses Template"
-                        : "Template FEB Aktif"}
-                    </strong>
-                    <small>
-                      {isDetectingTemplate
-                        ? "Membaca video dan mencari green screen..."
-                        : templateFile?.name ?? "Template FEB UAD"}
-                    </small>
-                  </span>
-                </div>
-                <div className="chroma-panel">
-                  <div className="placement-title">
-                    <CircleAlert size={17} />
-                    <strong>Green Screen</strong>
-                  </div>
-                  <p>
-                    {isDetectingTemplate
-                      ? "Sedang auto-detect area green screen..."
-                      : templateFile
-                        ? "Timing terdeteksi otomatis. Kamu tetap bisa koreksi manual."
-                        : "Upload template MP4 dengan area green screen."}
-                  </p>
-                  <div className="chroma-grid">
-                    <label>
-                      <span>Mulai</span>
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.1"
-                        value={Number.isFinite(chroma.start) ? chroma.start : 0}
-                        onChange={(event) => updateChroma("start", event.target.value)}
-                        disabled={isRendering}
-                      />
-                    </label>
-                    <label>
-                      <span>Selesai</span>
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.1"
-                        value={Number.isFinite(chroma.end) && chroma.end < 9999 ? chroma.end : ""}
-                        placeholder="akhir"
-                        onChange={(event) => updateChroma("end", event.target.value || 9999)}
-                        disabled={isRendering}
-                      />
-                    </label>
-                    <label>
-                      <span>Key</span>
-                      <input
-                        type="color"
-                        value={chroma.keyColor}
-                        onChange={(event) => updateChroma("keyColor", event.target.value)}
-                        disabled={isRendering}
-                      />
-                    </label>
-                  </div>
-                </div>
-              </>
-            ) : null}
             <input
               ref={inputRef}
               id="real-photo-upload"
@@ -667,7 +587,6 @@ export default function VideoGenerator() {
                   <span
                     className={
                       progress >= index * 28
-                      || (isCustomMode && index === 0 && templateFile)
                       || (index < 2 && photoFile)
                         ? "active"
                         : ""
@@ -686,9 +605,7 @@ export default function VideoGenerator() {
                 {isRendering ? <Loader2 size={15} /> : <Play size={15} fill="currentColor" />}
                 {isRendering
                   ? loadingText
-                  : isCustomMode
-                    ? "Template FEB diproses di browser. Koreksi timing jika deteksi belum pas."
-                    : "Generate HD sekali, hasilnya siap diunduh dan dibagikan."}
+                  : "Generate HD sekali, hasilnya siap diunduh dan dibagikan."}
               </p>
               {error ? <small>{error}</small> : null}
             </div>
