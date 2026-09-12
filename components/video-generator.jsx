@@ -58,6 +58,7 @@ export default function VideoGenerator() {
   const [templateFile, setTemplateFile] = useState(null);
   const [templateBuffer, setTemplateBuffer] = useState(null);
   const [templateUrl, setTemplateUrl] = useState("");
+  const [templateMeta, setTemplateMeta] = useState(null);
   const [customFrameUrl, setCustomFrameUrl] = useState("");
   const [chroma, setChroma] = useState(DEFAULT_CHROMA);
   const [isDetectingTemplate, setIsDetectingTemplate] = useState(false);
@@ -193,14 +194,18 @@ export default function VideoGenerator() {
       const url = URL.createObjectURL(file);
       setTemplateFile(file);
       setTemplateBuffer(buffer);
+      setTemplateMeta(null);
       setTemplateUrl((current) => replaceObjectUrl(current, url));
+      setCustomFrameUrl((current) => replaceObjectUrl(current, ""));
 
       const detected = await detectGreenScreen(url);
       setChroma(detected.chroma);
+      setTemplateMeta(detected.meta);
       setCustomFrameUrl((current) => replaceObjectUrl(current, detected.frameUrl));
       setStatus(`Green screen terdeteksi mulai ${formatSeconds(detected.chroma.start)} sampai ${formatSeconds(detected.chroma.end)}.`);
     } catch (detectError) {
       setChroma({ ...DEFAULT_CHROMA, start: 0, end: 9999 });
+      setTemplateMeta(null);
       setCustomFrameUrl((current) => replaceObjectUrl(current, ""));
       setError(detectError?.message || "Green screen belum bisa dideteksi otomatis. Atur waktunya manual.");
       setStatus("Template masuk, tetapi timing green screen perlu dicek manual.");
@@ -250,6 +255,7 @@ export default function VideoGenerator() {
     setPhotoBuffer(null);
     setTemplateFile(null);
     setTemplateBuffer(null);
+    setTemplateMeta(null);
     setTemplateUrl((current) => replaceObjectUrl(current, ""));
     setCustomFrameUrl((current) => replaceObjectUrl(current, ""));
     setChroma(DEFAULT_CHROMA);
@@ -429,6 +435,10 @@ export default function VideoGenerator() {
 
   const hasShareableVideo = Boolean(downloadBlob);
   const frameSrc = isCustomMode && customFrameUrl ? customFrameUrl : "/editor-frame.png";
+  const frameAspectRatio = isCustomMode && templateMeta?.width && templateMeta?.height
+    ? `${templateMeta.width} / ${templateMeta.height}`
+    : "1080 / 1350";
+  const frameAspectStyle = { aspectRatio: frameAspectRatio };
   const stepItems = isCustomMode ? ["Template", "Foto", "Atur", "Unduh"] : ["Upload", "Atur", "Generate", "Unduh"];
 
   return (
@@ -577,7 +587,7 @@ export default function VideoGenerator() {
           </div>
 
           <div className="preview-side">
-            <div className="preview-frame">
+            <div className="preview-frame" style={frameAspectStyle}>
               {downloadUrl ? (
                 <video src={downloadUrl} controls playsInline />
               ) : (
@@ -742,7 +752,7 @@ export default function VideoGenerator() {
             <div
               ref={editorFrameRef}
               className="editor-frame"
-              style={previewStyle(placement)}
+              style={{ ...previewStyle(placement), ...frameAspectStyle }}
               onPointerDown={startDrag}
               onPointerMove={moveDrag}
               onPointerUp={endDrag}
@@ -900,6 +910,11 @@ async function detectGreenScreen(videoUrl) {
 
   const duration = Number.isFinite(video.duration) ? video.duration : 0;
   if (!duration) throw new Error("Durasi template tidak terbaca.");
+  const meta = {
+    width: Math.max(1, video.videoWidth || 1080),
+    height: Math.max(1, video.videoHeight || 1350),
+    duration,
+  };
 
   const sampleCount = clamp(Math.ceil(duration * 2), 10, 48);
   const step = duration / Math.max(1, sampleCount - 1);
@@ -929,10 +944,11 @@ async function detectGreenScreen(videoUrl) {
   const start = Math.max(0, activeFrames[0].time - step * 0.5);
   const end = Math.min(duration, activeFrames[activeFrames.length - 1].time + step * 0.75);
   const keyColor = rgbToHex(strongest.key.r, strongest.key.g, strongest.key.b);
-  const frameUrl = await createTransparentFrame(video, strongest.time, keyColor);
+  const frameUrl = await createTransparentFrame(video, strongest.time, keyColor, meta);
 
   return {
     frameUrl,
+    meta,
     chroma: {
       start: roundTime(start),
       end: roundTime(end),
@@ -974,10 +990,12 @@ function analyzeGreenFrame(imageData) {
   };
 }
 
-async function createTransparentFrame(video, time, keyColor) {
+async function createTransparentFrame(video, time, keyColor, meta) {
   await seekVideo(video, time);
-  const width = 540;
-  const height = 675;
+  const maxPreviewSide = 720;
+  const scale = Math.min(1, maxPreviewSide / Math.max(meta.width, meta.height));
+  const width = Math.max(1, Math.round(meta.width * scale));
+  const height = Math.max(1, Math.round(meta.height * scale));
   const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;

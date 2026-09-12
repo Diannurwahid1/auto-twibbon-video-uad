@@ -60,10 +60,13 @@ async function renderVideo(photoBuffer, mode, placement = {}, customTemplateBuff
 
   postProgress(2, "Membuka template langsung di perangkat...");
   const templateBuffer = customTemplateBuffer ?? await getTemplateBuffer();
+  const variants = customTemplateBuffer
+    ? modeConfig.variants.map((variant) => ({ ...variant, preserveTemplateSize: true }))
+    : modeConfig.variants;
   let lastError = null;
 
-  for (let index = 0; index < modeConfig.variants.length; index += 1) {
-    const config = modeConfig.variants[index];
+  for (let index = 0; index < variants.length; index += 1) {
+    const config = variants[index];
     try {
       if (index > 0) {
         postProgress(4, "Encoder HP belum cocok, mencoba mode kompatibel...");
@@ -71,7 +74,7 @@ async function renderVideo(photoBuffer, mode, placement = {}, customTemplateBuff
       return await renderAttempt(templateBuffer, photoBuffer, config, placement, chroma);
     } catch (error) {
       lastError = error;
-      if (!isRecoverableRenderError(error) || index === modeConfig.variants.length - 1) throw error;
+      if (!isRecoverableRenderError(error) || index === variants.length - 1) throw error;
     }
   }
 
@@ -90,8 +93,9 @@ async function renderAttempt(templateBuffer, photoBuffer, config, placement, chr
     if (!(await videoTrack.canDecode())) throw new Error("Codec template tidak dapat didekode browser ini.");
 
     const duration = (await input.getDurationFromMetadata()) ?? (await input.computeDuration());
-    const canvas = new OffscreenCanvas(config.width, config.height);
-    renderer = createWebGlRenderer(canvas, photoBitmap, config.width, config.height, placement, chroma);
+    const renderConfig = await resolveRenderConfig(videoTrack, config);
+    const canvas = new OffscreenCanvas(renderConfig.width, renderConfig.height);
+    renderer = createWebGlRenderer(canvas, photoBitmap, renderConfig.width, renderConfig.height, placement, chroma);
     const target = new BufferTarget();
     const output = new Output({
       format: new Mp4OutputFormat({ fastStart: "in-memory" }),
@@ -99,7 +103,7 @@ async function renderAttempt(templateBuffer, photoBuffer, config, placement, chr
     });
     const videoSource = new CanvasSource(canvas, {
       codec: "avc",
-      quality: new Quality({ bitrate: config.bitrate }),
+      quality: new Quality({ bitrate: renderConfig.bitrate }),
       hardwareAcceleration: config.hardwareAcceleration,
       fullCodecString: config.fullCodecString,
       latencyMode: "realtime",
@@ -136,16 +140,20 @@ async function renderAttempt(templateBuffer, photoBuffer, config, placement, chr
 async function pumpVideo(track, source, renderer, duration) {
   const sink = new VideoSampleSink(track, { hardwareAcceleration: "no-preference" });
   let frameIndex = 0;
+  let firstTimestamp = null;
 
   for await (const sample of sink.samples()) {
+    firstTimestamp ??= sample.timestamp;
+    const outputTimestamp = Math.max(0, sample.timestamp - firstTimestamp);
+    const outputDuration = Math.max(0.001, sample.duration || 1 / 30);
     const frame = sample.toVideoFrame();
-    renderer.draw(frame, frameIndex / 30);
+    renderer.draw(frame, Math.max(0, sample.timestamp));
     frame.close();
-    await source.add(sample.timestamp, sample.duration, {
+    await source.add(outputTimestamp, outputDuration, {
       keyFrame: frameIndex % 60 === 0,
     });
     frameIndex += 1;
-    const percent = 5 + Math.round((sample.timestamp / duration) * 90);
+    const percent = 5 + Math.round((outputTimestamp / duration) * 90);
     if (frameIndex % 10 === 0) postProgress(Math.min(95, percent));
     sample.close();
   }
@@ -157,7 +165,12 @@ async function copyAudio(track, source) {
   const sink = new EncodedPacketSink(track);
   const decoderConfig = await track.getDecoderConfig();
   const metadata = { decoderConfig: decoderConfig ?? undefined };
-  for await (const packet of sink.packets()) await source.add(packet, metadata);
+  let firstTimestamp = null;
+  for await (const packet of sink.packets()) {
+    firstTimestamp ??= packet.timestamp;
+    const outputTimestamp = Math.max(0, packet.timestamp - firstTimestamp);
+    await source.add(packet.clone({ timestamp: outputTimestamp }), metadata);
+  }
   source.close();
 }
 
@@ -170,6 +183,30 @@ function getTemplateBuffer() {
     throw error;
   });
   return templateBufferPromise;
+}
+
+async function resolveRenderConfig(videoTrack, config) {
+  if (!config.preserveTemplateSize) {
+    return config;
+  }
+
+  const width = normalizeEven(await videoTrack.getDisplayWidth());
+  const height = normalizeEven(await videoTrack.getDisplayHeight());
+  const p2kPixels = 1080 * 1350;
+  const pixelRatio = (width * height) / p2kPixels;
+  const bitrate = clamp(Math.round(config.bitrate * pixelRatio), 1_500_000, 12_000_000);
+
+  return {
+    ...config,
+    width,
+    height,
+    bitrate,
+  };
+}
+
+function normalizeEven(value) {
+  const rounded = Math.max(2, Math.round(Number(value) || 2));
+  return rounded % 2 === 0 ? rounded : rounded - 1;
 }
 
 function createWebGlRenderer(canvas, photo, width, height, placement, chroma = {}) {
