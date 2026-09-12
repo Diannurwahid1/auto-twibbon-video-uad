@@ -964,7 +964,7 @@ async function detectGreenScreen(videoUrl) {
 
   const threshold = Math.max(0.035, strongest.ratio * 0.42);
   const activeFrames = frames.filter((frame) => frame.ratio >= threshold);
-  const start = Math.max(0, activeFrames[0].time - Math.max(4.5, step * 7));
+  const start = Math.max(0, activeFrames[0].time - Math.max(1.8, step * 3));
   const end = Math.min(duration, activeFrames[activeFrames.length - 1].time + Math.max(1, step * 1.5));
   const keyColor = rgbToHex(strongest.key.r, strongest.key.g, strongest.key.b);
   const bounds = expandBounds(strongest.bounds, 0.06);
