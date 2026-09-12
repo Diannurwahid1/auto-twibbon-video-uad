@@ -836,7 +836,6 @@ export default function VideoGenerator() {
               <ExternalLink size={17} />
               Follow & Like, lalu Generate HD
             </button>
-            <small>Tombol ini hanya muncul sekali di browser kamu setelah diklik.</small>
           </div>
         </div>
       ) : null}
