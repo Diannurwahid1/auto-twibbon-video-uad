@@ -35,8 +35,8 @@ foto, atur frame, generate video HD, lalu unduh atau bagikan.
 - Generate video HD dengan suara template tetap aman.
 - Caption P2K otomatis yang bisa disesuaikan dengan nama, prodi, dan fakultas.
 - Tombol bagikan untuk Instagram Post, Reels, Story, dan unduh file HD.
-- Mode custom template untuk upload MP4 greenscreen sendiri, dengan deteksi
-  timing greenscreen otomatis sebagai titik awal dan kontrol koreksi manual.
+- Mode FEB Twibbon dengan template Fakultas Ekonomi dan Bisnis bawaan dari
+  tools, plus deteksi timing greenscreen dan kontrol koreksi manual.
 - Popup panduan browser jika pengguna membuka dari Instagram browser atau
   browser yang membatasi akses file.
 - Proses foto berjalan di browser pengguna, bukan dikirim ke server.

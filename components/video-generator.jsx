@@ -28,7 +28,6 @@ const DEFAULT_PLACEMENT = {
 };
 
 const MAX_PHOTO_SIZE = 5 * 1024 * 1024;
-const MAX_TEMPLATE_SIZE = 80 * 1024 * 1024;
 const FEB_TEMPLATE_URL = "/Vidio%20twibbon_FEB.mp4";
 const FEB_TEMPLATE_NAME = "Template FEB UAD";
 const FOLLOW_GATE_KEY = "p2k-tools-follow-gate-clicked";
@@ -53,11 +52,10 @@ const LOADING_MESSAGES = [
 
 export default function VideoGenerator() {
   const inputRef = useRef(null);
-  const templateInputRef = useRef(null);
   const editorFrameRef = useRef(null);
   const dragRef = useRef(null);
   const workerRef = useRef(null);
-  const [activeMode, setActiveMode] = useState("custom");
+  const [activeMode, setActiveMode] = useState("feb");
   const [photoFile, setPhotoFile] = useState(null);
   const [photoBuffer, setPhotoBuffer] = useState(null);
   const [photoUrl, setPhotoUrl] = useState("");
@@ -88,7 +86,7 @@ export default function VideoGenerator() {
   const [showFollowGate, setShowFollowGate] = useState(false);
   const [pendingRender, setPendingRender] = useState(null);
   const isRendering = Boolean(renderMode);
-  const isCustomMode = activeMode === "custom";
+  const isCustomMode = activeMode === "feb";
   const canGenerate = photoFile && photoBuffer && (!isCustomMode || templateBuffer);
 
   const loadingText = useMemo(() => {
@@ -98,7 +96,7 @@ export default function VideoGenerator() {
     );
     if (isCustomMode) {
       const customMessages = [
-        "Template custom kamu sedang diproses langsung di browser.",
+        "Template FEB sedang diproses langsung di browser.",
         "Area green screen dipakai sebagai ruang foto otomatis.",
         "Foto, audio, dan video sedang disusun jadi MP4.",
         "Jika browser menolak, coba Chrome desktop atau HP lain.",
@@ -184,35 +182,6 @@ export default function VideoGenerator() {
     }
   }
 
-  async function handleTemplateChange(event) {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith("video/") || !file.name.toLowerCase().endsWith(".mp4")) {
-      setFloatingAlert("Template harus berupa video MP4.");
-      if (templateInputRef.current) templateInputRef.current.value = "";
-      return;
-    }
-    if (file.size > MAX_TEMPLATE_SIZE) {
-      setFloatingAlert("Ukuran template maksimal 80MB agar tetap aman di browser.");
-      if (templateInputRef.current) templateInputRef.current.value = "";
-      return;
-    }
-
-    try {
-      const buffer = await file.arrayBuffer();
-      const url = URL.createObjectURL(file);
-      await processTemplate({
-        buffer,
-        name: file.name,
-        url,
-        shouldRevokeInputUrl: false,
-      });
-    } catch {
-      finishTemplateWithError("Browser gagal membaca template. Buka lewat Chrome/Safari lalu pilih video dari file lokal.");
-      if (templateInputRef.current) templateInputRef.current.value = "";
-    }
-  }
-
   async function useFebTemplate(options = {}) {
     if (isRendering || isDetectingTemplate) return;
     if (options.silent && templateBuffer) return;
@@ -234,7 +203,7 @@ export default function VideoGenerator() {
 
   async function processTemplate({ buffer, name, url, shouldRevokeInputUrl }) {
     resetOutputs();
-    setActiveMode("custom");
+    setActiveMode("feb");
     setIsDetectingTemplate(true);
     setStatus("Membaca template dan mendeteksi green screen...");
     setError("");
@@ -274,8 +243,8 @@ export default function VideoGenerator() {
     resetOutputs();
     setActiveMode(nextMode);
     setStatus(
-      nextMode === "custom"
-        ? "Upload template MP4 green screen, lalu upload foto."
+      nextMode === "feb"
+        ? "Template FEB sudah siap. Upload foto, atur posisi, lalu generate HD."
         : "Upload foto, atur posisi, lalu generate video HD.",
     );
   }
@@ -318,7 +287,6 @@ export default function VideoGenerator() {
     setIsEditorOpen(false);
     setPhotoUrl((current) => replaceObjectUrl(current, ""));
     if (inputRef.current) inputRef.current.value = "";
-    if (templateInputRef.current) templateInputRef.current.value = "";
   }
 
   function startDrag(event) {
@@ -474,12 +442,12 @@ export default function VideoGenerator() {
 
     const file = new File(
       [blob],
-      isCustomMode ? "auto-twibbon-video-custom-full-hd.mp4" : "twibbon-p2k-prakarsa-uad-2026-full-hd.mp4",
+      isCustomMode ? "twibbon-feb-uad-full-hd.mp4" : "twibbon-p2k-prakarsa-uad-2026-full-hd.mp4",
       { type: "video/mp4" },
     );
     const shareData = {
-      title: isCustomMode ? "Auto Twibbon Video" : "Twibbon Video P2K Prakarsa UAD 2026",
-      text: `${isCustomMode ? "Video twibbon custom" : "Twibbon Video P2K"} siap dibagikan ke ${target}. Dibuat di diannurwahid.com`,
+      title: isCustomMode ? "Twibbon FEB UAD" : "Twibbon Video P2K Prakarsa UAD 2026",
+      text: `${isCustomMode ? "Twibbon FEB UAD" : "Twibbon Video P2K"} siap dibagikan ke ${target}. Dibuat di diannurwahid.com`,
       files: [file],
     };
 
@@ -522,10 +490,10 @@ export default function VideoGenerator() {
       <div className="tool-panel glass-panel">
         <div className="tool-header">
           <div>
-            <span>{isCustomMode ? "Custom Template" : "Twibbon Video P2K"}</span>
+            <span>{isCustomMode ? "FEB Twibbon" : "Twibbon Video P2K"}</span>
             <strong>
               {isCustomMode
-                ? "Template fakultas sendiri atau FEB bawaan."
+                ? "Template FEB bawaan, tinggal upload foto."
                 : "Upload, atur, generate, unduh."}
             </strong>
           </div>
@@ -541,14 +509,14 @@ export default function VideoGenerator() {
               P2K Cepat
             </button>
             <button
-              className={activeMode === "custom" ? "active" : ""}
+              className={activeMode === "feb" ? "active" : ""}
               type="button"
               role="tab"
-              aria-selected={activeMode === "custom"}
-              onClick={() => switchMode("custom")}
+              aria-selected={activeMode === "feb"}
+              onClick={() => switchMode("feb")}
               disabled={isRendering}
             >
-              Custom Template
+              FEB Twibbon
             </button>
           </div>
         </div>
@@ -558,43 +526,32 @@ export default function VideoGenerator() {
             {isCustomMode ? (
               <>
                 <div className="custom-template-note">
-                  <strong>Fleksibel untuk twibbon fakultas.</strong>
+                  <strong>Template FEB sudah disiapkan.</strong>
                   <span>
-                    Upload video twibbon mentah yang punya green screen, lalu sistem
-                    mendeteksi area foto otomatis. Untuk Fakultas Ekonomi dan Bisnis,
-                    template sudah tersedia langsung dari tools ini.
+                    Fokus mode ini khusus Twibbon Fakultas Ekonomi dan Bisnis.
+                    Template dari tools sudah dikunci agar posisi, rasio, dan
+                    green screen lebih rapi.
                   </span>
                   <button type="button" onClick={useFebTemplate} disabled={isRendering || isDetectingTemplate}>
                     {isDetectingTemplate ? <Loader2 size={16} /> : <Play size={16} fill="currentColor" />}
-                    Pakai Template FEB
+                    Muat Ulang Template FEB
                   </button>
                 </div>
-                <input
-                  ref={templateInputRef}
-                  id="custom-template-upload"
-                  type="file"
-                  accept="video/mp4"
-                  onChange={handleTemplateChange}
-                />
-                <label className="real-upload template-upload" htmlFor="custom-template-upload">
+                <div className="real-upload template-upload fixed-template-card">
                   {isDetectingTemplate ? <Loader2 className="spin-icon" size={34} /> : <Play size={34} fill="currentColor" />}
                   <span>
                     <strong>
                       {isDetectingTemplate
                         ? "Memproses Template"
-                        : templateFile
-                          ? "Ganti Template"
-                          : "Upload Template"}
+                        : "Template FEB Aktif"}
                     </strong>
                     <small>
                       {isDetectingTemplate
                         ? "Membaca video dan mencari green screen..."
-                        : templateFile
-                          ? templateFile.name
-                          : "MP4 green screen fakultas - maks. 80MB"}
+                        : templateFile?.name ?? "Template FEB UAD"}
                     </small>
                   </span>
-                </label>
+                </div>
                 <div className="chroma-panel">
                   <div className="placement-title">
                     <CircleAlert size={17} />
@@ -730,7 +687,7 @@ export default function VideoGenerator() {
                 {isRendering
                   ? loadingText
                   : isCustomMode
-                    ? "Custom template diproses di browser. Koreksi timing jika deteksi belum pas."
+                    ? "Template FEB diproses di browser. Koreksi timing jika deteksi belum pas."
                     : "Generate HD sekali, hasilnya siap diunduh dan dibagikan."}
               </p>
               {error ? <small>{error}</small> : null}
@@ -765,7 +722,7 @@ export default function VideoGenerator() {
                     type="button"
                     onClick={() => triggerDownload(
                       downloadUrl,
-                      isCustomMode ? "auto-twibbon-video-custom-full-hd.mp4" : "twibbon-p2k-prakarsa-uad-2026-full-hd.mp4",
+                      isCustomMode ? "twibbon-feb-uad-full-hd.mp4" : "twibbon-p2k-prakarsa-uad-2026-full-hd.mp4",
                     )}
                   >
                     <Download size={16} />

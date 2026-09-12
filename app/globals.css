@@ -470,6 +470,10 @@ p {
   background: var(--orange);
 }
 
+.fixed-template-card {
+  cursor: default;
+}
+
 .spin-icon {
   animation: spin 900ms linear infinite;
 }

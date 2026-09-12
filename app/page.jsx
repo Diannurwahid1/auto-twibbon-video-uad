@@ -332,7 +332,7 @@ export default function Home() {
       ) : null}
 
       {showThankYouAnnouncement ? (
-        <div className="feature-announcement-backdrop" role="dialog" aria-label="Update fitur template fakultas dan FEB">
+        <div className="feature-announcement-backdrop" role="dialog" aria-label="Update fitur FEB Twibbon">
           <div className="feature-announcement thank-you-announcement glass-panel">
             <button
               className="feature-announcement-close"
@@ -346,14 +346,14 @@ export default function Home() {
             <img src="/thank-you-announcement.png" alt="" />
             <div>
               <span>Update fitur</span>
-              <h2>Template fakultas sekarang lebih fleksibel.</h2>
+              <h2>FEB Twibbon sekarang sudah tersedia.</h2>
               <p>
-                Sekarang kamu bisa upload video twibbon mentah dengan green screen
-                untuk fakultas masing-masing. Khusus Fakultas Ekonomi dan Bisnis,
-                template FEB sudah tersedia langsung di mode Custom Template.
+                Mode FEB Twibbon sekarang langsung memakai template Fakultas
+                Ekonomi dan Bisnis dari tools ini. Kamu cukup upload foto,
+                atur posisi, lalu generate video HD.
               </p>
               <div className="announcement-metrics" aria-label="Statistik satu hari">
-                <strong>Custom template</strong>
+                <strong>FEB Twibbon</strong>
                 <strong>Template FEB tersedia</strong>
               </div>
               <button type="button" onClick={dismissThankYouAnnouncement}>
