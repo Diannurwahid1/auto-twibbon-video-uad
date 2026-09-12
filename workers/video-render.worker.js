@@ -282,6 +282,7 @@ function createWebGlRenderer(canvas, photo, width, height, placement, chroma = {
   gl.uniform1f(gl.getUniformLocation(program, "u_key_start"), chromaConfig.start);
   gl.uniform1f(gl.getUniformLocation(program, "u_key_end"), chromaConfig.end);
   gl.uniform3fv(gl.getUniformLocation(program, "u_key_color"), chromaConfig.keyColor);
+  gl.uniform4fv(gl.getUniformLocation(program, "u_key_bounds"), chromaConfig.bounds);
   gl.uniform1f(gl.getUniformLocation(program, "u_threshold_min"), chromaConfig.sensitivity);
   gl.uniform1f(gl.getUniformLocation(program, "u_threshold_max"), chromaConfig.sensitivity + chromaConfig.smoothness);
   gl.viewport(0, 0, width, height);
@@ -370,8 +371,8 @@ function normalizeChromaConfig(chroma) {
   const start = Math.max(0, Number(chroma.start ?? DEFAULT_CHROMA.start) || 0);
   const rawEnd = Number(chroma.end ?? DEFAULT_CHROMA.end);
   const end = Number.isFinite(rawEnd) ? Math.max(start, rawEnd) : DEFAULT_CHROMA.end;
-  const sensitivity = clamp(Number(chroma.sensitivity ?? DEFAULT_CHROMA.sensitivity) || DEFAULT_CHROMA.sensitivity, 0.02, 0.32);
-  const smoothness = clamp(Number(chroma.smoothness ?? DEFAULT_CHROMA.smoothness) || DEFAULT_CHROMA.smoothness, 0.02, 0.42);
+  const sensitivity = clamp(Number(chroma.sensitivity ?? DEFAULT_CHROMA.sensitivity) || DEFAULT_CHROMA.sensitivity, 0.02, 0.42);
+  const smoothness = clamp(Number(chroma.smoothness ?? DEFAULT_CHROMA.smoothness) || DEFAULT_CHROMA.smoothness, 0.02, 0.5);
 
   return {
     start,
@@ -379,7 +380,17 @@ function normalizeChromaConfig(chroma) {
     sensitivity,
     smoothness,
     keyColor: hexToRgb(chroma.keyColor ?? DEFAULT_CHROMA.keyColor),
+    bounds: normalizeBounds(chroma.bounds),
   };
+}
+
+function normalizeBounds(bounds) {
+  if (!bounds || typeof bounds !== "object") return new Float32Array([0, 0, 1, 1]);
+  const left = clamp(Number(bounds.left) || 0, 0, 1);
+  const top = clamp(Number(bounds.top) || 0, 0, 1);
+  const right = clamp(Number(bounds.right) || 1, left, 1);
+  const bottom = clamp(Number(bounds.bottom) || 1, top, 1);
+  return new Float32Array([left, top, right, bottom]);
 }
 
 function hexToRgb(hex) {
@@ -415,6 +426,7 @@ uniform float u_time;
 uniform float u_key_start;
 uniform float u_key_end;
 uniform vec3 u_key_color;
+uniform vec4 u_key_bounds;
 uniform float u_threshold_min;
 uniform float u_threshold_max;
 in vec2 v_uv;
@@ -432,8 +444,17 @@ void main() {
     outColor = vec4(video, 1.0);
     return;
   }
+  if (v_uv.x < u_key_bounds.x || v_uv.x > u_key_bounds.z || v_uv.y < u_key_bounds.y || v_uv.y > u_key_bounds.w) {
+    outColor = vec4(video, 1.0);
+    return;
+  }
+  float greenDominance = video.g - max(video.r, video.b);
+  float greenish = smoothstep(-0.015, 0.07, greenDominance) * smoothstep(0.30, 0.48, video.g);
   float chromaDistance = distance(chroma(video), chroma(u_key_color));
-  float templateAlpha = smoothstep(u_threshold_min, u_threshold_max, chromaDistance);
+  float chromaAlpha = smoothstep(u_threshold_min, u_threshold_max, chromaDistance);
+  float templateAlpha = mix(1.0, chromaAlpha, greenish);
+  float greenBias = smoothstep(0.045, 0.18, greenDominance) * smoothstep(0.28, 0.48, video.g);
+  templateAlpha = min(templateAlpha, 1.0 - greenBias);
   outColor = vec4(mix(photo, video, templateAlpha), 1.0);
 }`;
 
@@ -454,6 +475,7 @@ uniform float u_time;
 uniform float u_key_start;
 uniform float u_key_end;
 uniform vec3 u_key_color;
+uniform vec4 u_key_bounds;
 uniform float u_threshold_min;
 uniform float u_threshold_max;
 varying vec2 v_uv;
@@ -470,7 +492,16 @@ void main() {
     gl_FragColor = vec4(video, 1.0);
     return;
   }
+  if (v_uv.x < u_key_bounds.x || v_uv.x > u_key_bounds.z || v_uv.y < u_key_bounds.y || v_uv.y > u_key_bounds.w) {
+    gl_FragColor = vec4(video, 1.0);
+    return;
+  }
+  float greenDominance = video.g - max(video.r, video.b);
+  float greenish = smoothstep(-0.015, 0.07, greenDominance) * smoothstep(0.30, 0.48, video.g);
   float chromaDistance = distance(chroma(video), chroma(u_key_color));
-  float templateAlpha = smoothstep(u_threshold_min, u_threshold_max, chromaDistance);
+  float chromaAlpha = smoothstep(u_threshold_min, u_threshold_max, chromaDistance);
+  float templateAlpha = mix(1.0, chromaAlpha, greenish);
+  float greenBias = smoothstep(0.045, 0.18, greenDominance) * smoothstep(0.28, 0.48, video.g);
+  templateAlpha = min(templateAlpha, 1.0 - greenBias);
   gl_FragColor = vec4(mix(photo, video, templateAlpha), 1.0);
 }`;

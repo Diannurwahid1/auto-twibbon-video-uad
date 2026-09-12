@@ -1011,7 +1011,8 @@ async function detectGreenScreen(videoUrl) {
   const start = Math.max(0, activeFrames[0].time - step * 0.5);
   const end = Math.min(duration, activeFrames[activeFrames.length - 1].time + step * 0.75);
   const keyColor = rgbToHex(strongest.key.r, strongest.key.g, strongest.key.b);
-  const frameUrl = await createTransparentFrame(video, strongest.time, keyColor, meta);
+  const bounds = expandBounds(strongest.bounds, 0.06);
+  const frameUrl = await createTransparentFrame(video, strongest.time, keyColor, meta, bounds);
 
   return {
     frameUrl,
@@ -1020,8 +1021,9 @@ async function detectGreenScreen(videoUrl) {
       start: roundTime(start),
       end: roundTime(end),
       keyColor,
-      sensitivity: DEFAULT_CHROMA.sensitivity,
-      smoothness: DEFAULT_CHROMA.smoothness,
+      bounds,
+      sensitivity: 0.18,
+      smoothness: 0.24,
     },
   };
 }
@@ -1032,16 +1034,29 @@ function analyzeGreenFrame(imageData) {
   let red = 0;
   let green = 0;
   let blue = 0;
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  const width = imageData.width;
+  const height = imageData.height;
 
   for (let index = 0; index < data.length; index += 4) {
     const r = data[index];
     const g = data[index + 1];
     const b = data[index + 2];
     if (isGreenPixel(r, g, b)) {
+      const pixelIndex = index / 4;
+      const x = pixelIndex % width;
+      const y = Math.floor(pixelIndex / width);
       greenPixels += 1;
       red += r;
       green += g;
       blue += b;
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x);
+      maxY = Math.max(maxY, y);
     }
   }
 
@@ -1054,10 +1069,18 @@ function analyzeGreenFrame(imageData) {
       g: Math.round(green / divisor) || 255,
       b: Math.round(blue / divisor) || 83,
     },
+    bounds: greenPixels > 0
+      ? {
+          left: minX / width,
+          top: minY / height,
+          right: (maxX + 1) / width,
+          bottom: (maxY + 1) / height,
+        }
+      : null,
   };
 }
 
-async function createTransparentFrame(video, time, keyColor, meta) {
+async function createTransparentFrame(video, time, keyColor, meta, bounds) {
   await seekVideo(video, time);
   const maxPreviewSide = 720;
   const scale = Math.min(1, maxPreviewSide / Math.max(meta.width, meta.height));
@@ -1075,7 +1098,11 @@ async function createTransparentFrame(video, time, keyColor, meta) {
     const r = imageData.data[index];
     const g = imageData.data[index + 1];
     const b = imageData.data[index + 2];
-    if (isGreenPixel(r, g, b) || colorDistance({ r, g, b }, key) < 105) {
+    const pixelIndex = index / 4;
+    const x = (pixelIndex % width) / width;
+    const y = Math.floor(pixelIndex / width) / height;
+    const insideBounds = !bounds || (x >= bounds.left && x <= bounds.right && y >= bounds.top && y <= bounds.bottom);
+    if (insideBounds && (isGreenPixel(r, g, b) || (g > r * 1.02 && g > b * 1.12 && colorDistance({ r, g, b }, key) < 122))) {
       imageData.data[index + 3] = 0;
     }
   }
@@ -1086,8 +1113,18 @@ async function createTransparentFrame(video, time, keyColor, meta) {
   return URL.createObjectURL(blob);
 }
 
+function expandBounds(bounds, padding) {
+  if (!bounds) return { left: 0, top: 0, right: 1, bottom: 1 };
+  return {
+    left: clamp(bounds.left - padding, 0, 1),
+    top: clamp(bounds.top - padding, 0, 1),
+    right: clamp(bounds.right + padding, 0, 1),
+    bottom: clamp(bounds.bottom + padding, 0, 1),
+  };
+}
+
 function isGreenPixel(r, g, b) {
-  return g > 128 && g > r * 1.42 && g > b * 1.22 && g - Math.max(r, b) > 58;
+  return g > 118 && g > r * 1.12 && g > b * 1.2 && g - Math.max(r, b) > 28;
 }
 
 function colorDistance(a, b) {
