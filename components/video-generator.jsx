@@ -129,6 +129,11 @@ export default function VideoGenerator() {
   }, []);
 
   useEffect(() => {
+    useFebTemplate({ silent: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
     if (!isEditorOpen) return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -208,8 +213,9 @@ export default function VideoGenerator() {
     }
   }
 
-  async function useFebTemplate() {
+  async function useFebTemplate(options = {}) {
     if (isRendering || isDetectingTemplate) return;
+    if (options.silent && templateBuffer) return;
     try {
       const response = await fetch(FEB_TEMPLATE_URL, { cache: "force-cache" });
       if (!response.ok) throw new Error("Template FEB gagal dimuat.");
