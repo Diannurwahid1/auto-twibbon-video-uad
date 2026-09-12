@@ -332,7 +332,7 @@ export default function Home() {
       ) : null}
 
       {showThankYouAnnouncement ? (
-        <div className="feature-announcement-backdrop" role="dialog" aria-label="Ucapan terima kasih untuk maba P2K Prakarsa UAD 2026">
+        <div className="feature-announcement-backdrop" role="dialog" aria-label="Update fitur template fakultas dan FEB">
           <div className="feature-announcement thank-you-announcement glass-panel">
             <button
               className="feature-announcement-close"
@@ -345,20 +345,19 @@ export default function Home() {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/thank-you-announcement.png" alt="" />
             <div>
-              <span>Terima kasih</span>
-              <h2>1 hari tools ini digunakan oleh banyak maba UAD.</h2>
+              <span>Update fitur</span>
+              <h2>Template fakultas sekarang lebih fleksibel.</h2>
               <p>
-                Terima kasih kepada seluruh maba yang sudah menggunakan dan
-                berpartisipasi dalam Twibbon P2K Prakarsa UAD 2026. Saya Dian
-                Nurwahid, maba Prodi Manajemen 2026, ikut senang melihat teman-teman
-                ikut meramaikan.
+                Sekarang kamu bisa upload video twibbon mentah dengan green screen
+                untuk fakultas masing-masing. Khusus Fakultas Ekonomi dan Bisnis,
+                template FEB sudah tersedia langsung di mode Custom Template.
               </p>
               <div className="announcement-metrics" aria-label="Statistik satu hari">
-                <strong>1.422 visitors</strong>
-                <strong>3.101 page views</strong>
+                <strong>Custom template</strong>
+                <strong>Template FEB tersedia</strong>
               </div>
               <button type="button" onClick={dismissThankYouAnnouncement}>
-                Lanjut buat twibbon
+                Coba fitur baru
               </button>
             </div>
           </div>

@@ -29,6 +29,8 @@ const DEFAULT_PLACEMENT = {
 
 const MAX_PHOTO_SIZE = 5 * 1024 * 1024;
 const MAX_TEMPLATE_SIZE = 80 * 1024 * 1024;
+const FEB_TEMPLATE_URL = "/Vidio%20twibbon_FEB.mp4";
+const FEB_TEMPLATE_NAME = "Template FEB UAD";
 const DEFAULT_CHROMA = {
   start: 17,
   end: 9999,
@@ -183,21 +185,52 @@ export default function VideoGenerator() {
       return;
     }
 
+    try {
+      const buffer = await file.arrayBuffer();
+      const url = URL.createObjectURL(file);
+      await processTemplate({
+        buffer,
+        name: file.name,
+        url,
+        shouldRevokeInputUrl: false,
+      });
+    } catch {
+      finishTemplateWithError("Browser gagal membaca template. Buka lewat Chrome/Safari lalu pilih video dari file lokal.");
+      if (templateInputRef.current) templateInputRef.current.value = "";
+    }
+  }
+
+  async function useFebTemplate() {
+    if (isRendering || isDetectingTemplate) return;
+    try {
+      const response = await fetch(FEB_TEMPLATE_URL, { cache: "force-cache" });
+      if (!response.ok) throw new Error("Template FEB gagal dimuat.");
+      const buffer = await response.arrayBuffer();
+      const url = URL.createObjectURL(new Blob([buffer], { type: "video/mp4" }));
+      await processTemplate({
+        buffer,
+        name: FEB_TEMPLATE_NAME,
+        url,
+        shouldRevokeInputUrl: false,
+      });
+    } catch (templateError) {
+      finishTemplateWithError(templateError?.message || "Template FEB belum bisa dimuat. Coba refresh halaman.");
+    }
+  }
+
+  async function processTemplate({ buffer, name, url, shouldRevokeInputUrl }) {
     resetOutputs();
     setActiveMode("custom");
     setIsDetectingTemplate(true);
     setStatus("Membaca template dan mendeteksi green screen...");
     setError("");
+    setTemplateFile({ name });
+    setTemplateBuffer(buffer);
+    setTemplateMeta(null);
+    setTemplateUrl((current) => replaceObjectUrl(current, url));
+    setCustomFrameUrl((current) => replaceObjectUrl(current, ""));
 
     try {
-      const buffer = await file.arrayBuffer();
-      const url = URL.createObjectURL(file);
-      setTemplateFile(file);
-      setTemplateBuffer(buffer);
-      setTemplateMeta(null);
-      setTemplateUrl((current) => replaceObjectUrl(current, url));
-      setCustomFrameUrl((current) => replaceObjectUrl(current, ""));
-
       const detected = await detectGreenScreen(url);
       setChroma(detected.chroma);
       setTemplateMeta(detected.meta);
@@ -207,11 +240,19 @@ export default function VideoGenerator() {
       setChroma({ ...DEFAULT_CHROMA, start: 0, end: 9999 });
       setTemplateMeta(null);
       setCustomFrameUrl((current) => replaceObjectUrl(current, ""));
-      setError(detectError?.message || "Green screen belum bisa dideteksi otomatis. Atur waktunya manual.");
+      setError(detectError?.message || "Green screen belum bisa dideteksi otomatis. Atur timing manual.");
       setStatus("Template masuk, tetapi timing green screen perlu dicek manual.");
     } finally {
+      if (shouldRevokeInputUrl) URL.revokeObjectURL(url);
       setIsDetectingTemplate(false);
     }
+  }
+
+  function finishTemplateWithError(message) {
+    setIsDetectingTemplate(false);
+    setError(message);
+    setStatus("Template gagal diproses.");
+    setFloatingAlert(message);
   }
 
   function switchMode(nextMode) {
@@ -449,7 +490,7 @@ export default function VideoGenerator() {
             <span>{isCustomMode ? "Custom Template" : "Twibbon Video P2K"}</span>
             <strong>
               {isCustomMode
-                ? "Upload template, deteksi green screen, generate."
+                ? "Template fakultas sendiri atau FEB bawaan."
                 : "Upload, atur, generate, unduh."}
             </strong>
           </div>
@@ -481,6 +522,18 @@ export default function VideoGenerator() {
           <div className="upload-side">
             {isCustomMode ? (
               <>
+                <div className="custom-template-note">
+                  <strong>Fleksibel untuk twibbon fakultas.</strong>
+                  <span>
+                    Upload video twibbon mentah yang punya green screen, lalu sistem
+                    mendeteksi area foto otomatis. Untuk Fakultas Ekonomi dan Bisnis,
+                    template sudah tersedia langsung dari tools ini.
+                  </span>
+                  <button type="button" onClick={useFebTemplate} disabled={isRendering || isDetectingTemplate}>
+                    {isDetectingTemplate ? <Loader2 size={16} /> : <Play size={16} fill="currentColor" />}
+                    Pakai Template FEB
+                  </button>
+                </div>
                 <input
                   ref={templateInputRef}
                   id="custom-template-upload"
@@ -489,10 +542,22 @@ export default function VideoGenerator() {
                   onChange={handleTemplateChange}
                 />
                 <label className="real-upload template-upload" htmlFor="custom-template-upload">
-                  <Play size={34} fill="currentColor" />
+                  {isDetectingTemplate ? <Loader2 className="spin-icon" size={34} /> : <Play size={34} fill="currentColor" />}
                   <span>
-                    <strong>{templateFile ? "Ganti Template" : "Upload Template"}</strong>
-                    <small>{templateFile ? templateFile.name : "MP4 green screen - maks. 80MB"}</small>
+                    <strong>
+                      {isDetectingTemplate
+                        ? "Memproses Template"
+                        : templateFile
+                          ? "Ganti Template"
+                          : "Upload Template"}
+                    </strong>
+                    <small>
+                      {isDetectingTemplate
+                        ? "Membaca video dan mencari green screen..."
+                        : templateFile
+                          ? templateFile.name
+                          : "MP4 green screen fakultas - maks. 80MB"}
+                    </small>
                   </span>
                 </label>
                 <div className="chroma-panel">
