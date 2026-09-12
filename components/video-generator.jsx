@@ -109,12 +109,17 @@ export default function VideoGenerator() {
 
   const generatedCaption = useMemo(
     () =>
-      buildP2kCaption({
-        name: captionName,
-        program: captionProgram,
-        faculty: captionFaculty,
-      }),
-    [captionName, captionProgram, captionFaculty],
+      isCustomMode
+        ? buildFebCaption({
+            name: captionName,
+            program: captionProgram,
+          })
+        : buildP2kCaption({
+            name: captionName,
+            program: captionProgram,
+            faculty: captionFaculty,
+          }),
+    [captionName, captionProgram, captionFaculty, isCustomMode],
   );
 
   useEffect(() => () => {
@@ -653,8 +658,12 @@ export default function VideoGenerator() {
               <div className="caption-card">
                 <div className="caption-card-head">
                   <div>
-                    <strong>Caption P2K otomatis</strong>
-                    <span>Isi nama, prodi, dan fakultas. Format mengikuti p2k_uad.</span>
+                    <strong>{isCustomMode ? "Caption FEB otomatis" : "Caption P2K otomatis"}</strong>
+                    <span>
+                      {isCustomMode
+                        ? "Isi nama dan prodi. Format mengikuti Bursa Ekonom Muda FEB."
+                        : "Isi nama, prodi, dan fakultas. Format mengikuti p2k_uad."}
+                    </span>
                   </div>
                   <button type="button" onClick={copyCaption}>
                     {isCaptionCopied ? <Check size={16} /> : <Copy size={16} />}
@@ -680,15 +689,17 @@ export default function VideoGenerator() {
                       placeholder="Contoh: Manajemen"
                     />
                   </label>
-                  <label>
-                    <span>Fakultas</span>
-                    <input
-                      type="text"
-                      value={captionFaculty}
-                      onChange={(event) => setCaptionFaculty(event.target.value)}
-                      placeholder="Contoh: Ekonomi dan Bisnis"
-                    />
-                  </label>
+                  {!isCustomMode ? (
+                    <label>
+                      <span>Fakultas</span>
+                      <input
+                        type="text"
+                        value={captionFaculty}
+                        onChange={(event) => setCaptionFaculty(event.target.value)}
+                        placeholder="Contoh: Ekonomi dan Bisnis"
+                      />
+                    </label>
+                  ) : null}
                 </div>
                 <pre>{generatedCaption}</pre>
               </div>
@@ -1169,6 +1180,26 @@ Wassalamualaikum Warahmatullahi Wabarakatuh.
 #P2KPRAKARSA2026
 #DahlanMudaBertalenta
 #UAD2026`;
+}
+
+function buildFebCaption({ name, program }) {
+  const cleanName = name.trim() || "[NAMA]";
+  const cleanProgram = program.trim() || "[PRODI]";
+
+  return `Assalamualaikum Warahmatullahi Wabarakatuh.
+Bursa Ekonom Muda, Bertumbuh dengan Literasi, Bertransformasi untuk Nusantara!
+
+Perkenalkan, saya ${cleanName} dari Fakultas Ekonomi dan Bisnis, Program Studi ${cleanProgram}, Universitas Ahmad Dahlan.
+
+Saya siap mengikuti rangkaian Program Pengenalan Kampus (P2K) Bursa Ekonom Muda dan menjadi bagian dari generasi muda yang menjadikan ilmu dan literasi sebagai modal untuk terus bertumbuh, berinovasi, serta memberikan kontribusi bagi kemajuan Nusantara.
+
+Melalui P2K Bursa Ekonom Muda, saya berharap dapat memperluas wawasan, membangun relasi, mengenal lingkungan kampus, serta mengembangkan potensi diri untuk menghadapi berbagai peluang dan tantangan di masa depan.
+
+Bertumbuh dengan literasi, bertransformasi dengan aksi, bersama membangun Nusantara!
+
+Wassalamualaikum Warahmatullahi Wabarakatuh.
+
+#BursaEkonomMuda #P2KUAD2026 #ProgramPengenalanKampus #WeAreUAD`;
 }
 
 function clamp(value, min, max) {
