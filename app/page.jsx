@@ -65,8 +65,9 @@ const technologies = [
 
 const instagramReelUrl = "https://www.instagram.com/denzhang1/reel/Dc7poZUAfGv/";
 const instagramIconUrl = "https://static.cdninstagram.com/rsrc.php/yr/r/rzWiSjZRxk5.webp";
+const instagramReelFallbackThumb = "/student-preview.png";
 const instagramReelThumb =
-  "https://scontent.cdninstagram.com/v/t51.71878-15/796641279_1388252672753971_1669868412018179825_n.jpg?stp=cmp1_dst-jpg_e35_s640x640_tt6&_nc_cat=111&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=csclNU-lUiMQ7kNvwEl4MII&_nc_oc=AdrF8NzmfH8VbalmuY7g57aQCoZQ3f375WNEjWf-KRIJ_tD1-9ONtgHWSvv8QODJhiI&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&_nc_gid=Su1LdBNClrHQkuSxY1qxAw&_nc_ss=70689&oh=00_AQKPCP989E_d1ODPyUtjMW3N_yLQCmtTheZvlX8e5FOG1w&oe=6AA30F4D";
+  "https://scontent.cdninstagram.com/v/t51.71878-15/796641279_1388252672753971_1669868412018179825_n.jpg?stp=cmp1_dst-jpg_e35_s640x640_tt6&_nc_cat=111&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=jIfw4FBc5ioQ7kNvwEzdCzY&_nc_oc=Adp5COPwmrt5hUQj1FHftHWQLH1hk3Gei2GiUeJoUA3JpgNDQmpSx737xhjAkqvyHUI&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&_nc_gid=PCDuC0wpVOkJnB3YvfDCVg&_nc_ss=70689&oh=00_AQKLcPJ0CtUnwIlsBErHHkNKyCvVMxrCdNoepZoX2kt1_A&oe=6AAAF84D";
 
 export default function Home() {
   const [isInstagramOpen, setIsInstagramOpen] = useState(false);
@@ -382,15 +383,14 @@ function InstagramEmbed({ className = "instagram-embed" }) {
           alt=""
           onError={(event) => {
             event.currentTarget.onerror = null;
-            event.currentTarget.src = instagramIconUrl;
-            event.currentTarget.classList.add("fallback-icon");
+            event.currentTarget.src = instagramReelFallbackThumb;
           }}
         />
       </div>
       <div className="instagram-content">
         <strong>Dian Nurwahid (@denzhang1) • Instagram reel</strong>
         <em>
-          73 likes, 4 comments - denzhang1 on September 5, 2026:
+          105 likes, 6 comments - denzhang1 on September 5, 2026:
           "Assalamualaikum Warahmatullahi Wabarakatuh, Dahlan Muda Berkarya
           Wujudkan Transformasi Berkemajuan."
         </em>
