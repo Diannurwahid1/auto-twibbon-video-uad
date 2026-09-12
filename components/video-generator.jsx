@@ -1102,7 +1102,9 @@ async function createTransparentFrame(video, time, keyColor, meta, bounds) {
     const x = (pixelIndex % width) / width;
     const y = Math.floor(pixelIndex / width) / height;
     const insideBounds = !bounds || (x >= bounds.left && x <= bounds.right && y >= bounds.top && y <= bounds.bottom);
-    if (insideBounds && (isGreenPixel(r, g, b) || (g > r * 1.02 && g > b * 1.12 && colorDistance({ r, g, b }, key) < 122))) {
+    const redOrangeInk = r - g > 14 && r > 92;
+    const greenYellowFill = g > 78 && g >= r - 22 && g > b * 1.05 && !redOrangeInk;
+    if (insideBounds && (isGreenPixel(r, g, b) || greenYellowFill || (g > r * 1.02 && g > b * 1.12 && colorDistance({ r, g, b }, key) < 122))) {
       imageData.data[index + 3] = 0;
     }
   }
