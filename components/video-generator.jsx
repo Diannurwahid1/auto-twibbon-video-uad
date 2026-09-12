@@ -31,6 +31,10 @@ const MAX_PHOTO_SIZE = 5 * 1024 * 1024;
 const MAX_TEMPLATE_SIZE = 80 * 1024 * 1024;
 const FEB_TEMPLATE_URL = "/Vidio%20twibbon_FEB.mp4";
 const FEB_TEMPLATE_NAME = "Template FEB UAD";
+const FOLLOW_GATE_KEY = "p2k-tools-follow-gate-clicked";
+const FOLLOW_POST_URL = "https://www.instagram.com/denzhang1/p/DdLxO8Knd6v/?hl=id&img_index=2";
+const FOLLOW_POST_THUMB =
+  "https://scontent.cdninstagram.com/v/t51.82787-15/807682558_18361542139300227_4688884255262221001_n.jpg?stp=cmp1_dst-jpg_e35_s640x640_tt6&_nc_cat=105&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0FST1VTRUxfSVRFTS5iZXN0X2ltYWdlX3VybGdlbi5DMyJ9&_nc_ohc=eIwHVK_tpG0Q7kNvwGl5T4a&_nc_oc=AdqCkeUUPjj3IzeMghvZiNrGrAlfTQNDOuIAnoHS2F2aAwMorugCr6BVMlGYu_OyHnY&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&_nc_gid=pSmc_S99wW9QjZpOUMOwQg&_nc_ss=70689&oh=00_AQJkT2188CsJYNIjBiqlSJwhsw-lRGEGFsSS9Qscodu2CA&oe=6AAAFD2C";
 const DEFAULT_CHROMA = {
   start: 17,
   end: 9999,
@@ -53,7 +57,7 @@ export default function VideoGenerator() {
   const editorFrameRef = useRef(null);
   const dragRef = useRef(null);
   const workerRef = useRef(null);
-  const [activeMode, setActiveMode] = useState("p2k");
+  const [activeMode, setActiveMode] = useState("custom");
   const [photoFile, setPhotoFile] = useState(null);
   const [photoBuffer, setPhotoBuffer] = useState(null);
   const [photoUrl, setPhotoUrl] = useState("");
@@ -80,6 +84,9 @@ export default function VideoGenerator() {
   const [showRenderBrowserNotice, setShowRenderBrowserNotice] = useState(false);
   const [isAndroidDevice, setIsAndroidDevice] = useState(false);
   const [isRenderLinkCopied, setIsRenderLinkCopied] = useState(false);
+  const [hasClickedFollowGate, setHasClickedFollowGate] = useState(false);
+  const [showFollowGate, setShowFollowGate] = useState(false);
+  const [pendingRender, setPendingRender] = useState(null);
   const isRendering = Boolean(renderMode);
   const isCustomMode = activeMode === "custom";
   const canGenerate = photoFile && photoBuffer && (!isCustomMode || templateBuffer);
@@ -118,6 +125,7 @@ export default function VideoGenerator() {
 
   useEffect(() => {
     setIsAndroidDevice(/Android/i.test(navigator.userAgent || ""));
+    setHasClickedFollowGate(localStorage.getItem(FOLLOW_GATE_KEY) === "true");
   }, []);
 
   useEffect(() => {
@@ -341,8 +349,13 @@ export default function VideoGenerator() {
     setStatus("Posisi foto disimpan. Klik Generate HD untuk membuat video final.");
   }
 
-  async function renderVideo(mode, nextPlacement = placement) {
+  async function renderVideo(mode, nextPlacement = placement, bypassFollowGate = false) {
     if (!canGenerate || isRendering) return;
+    if (!bypassFollowGate && !hasClickedFollowGate) {
+      setPendingRender({ mode, placement: nextPlacement });
+      setShowFollowGate(true);
+      return;
+    }
     if (!("VideoEncoder" in window) || !("VideoDecoder" in window)) {
       setError("Browser belum mendukung render video cepat. Gunakan Chrome atau Edge terbaru.");
       setShowRenderBrowserNotice(true);
@@ -373,6 +386,20 @@ export default function VideoGenerator() {
       );
     } catch (renderError) {
       finishWithError(renderError.message);
+    }
+  }
+
+  function followAndContinue() {
+    localStorage.setItem(FOLLOW_GATE_KEY, "true");
+    setHasClickedFollowGate(true);
+    setShowFollowGate(false);
+    window.open(FOLLOW_POST_URL, "_blank", "noopener,noreferrer");
+    const nextRender = pendingRender;
+    setPendingRender(null);
+    if (nextRender) {
+      window.setTimeout(() => {
+        renderVideo(nextRender.mode, nextRender.placement, true);
+      }, 450);
     }
   }
 
@@ -881,6 +908,56 @@ export default function VideoGenerator() {
           <button type="button" onClick={() => setFloatingAlert("")} aria-label="Tutup notifikasi">
             <X size={16} />
           </button>
+        </div>
+      ) : null}
+
+      {showFollowGate ? (
+        <div className="follow-gate-backdrop" role="dialog" aria-modal="true" aria-label="Follow developer sebelum generate HD">
+          <div className="follow-gate glass-panel">
+            <div className="follow-gate-copy">
+              <span>Langkah kecil sebelum render</span>
+              <h2>Follow & like dulu ya.</h2>
+              <p>
+                Tools ini gratis dan diproses langsung di browser. Bantu dukung
+                developer dengan follow dan like postingan twibbon ini dulu,
+                setelah itu Generate HD langsung berjalan.
+              </p>
+            </div>
+            <a
+              className="follow-preview-card"
+              href={FOLLOW_POST_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(event) => {
+                event.preventDefault();
+                followAndContinue();
+              }}
+            >
+              <div className="follow-preview-thumb">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={FOLLOW_POST_THUMB}
+                  alt=""
+                  onError={(event) => {
+                    event.currentTarget.onerror = null;
+                    event.currentTarget.src = "/student-preview.png";
+                  }}
+                />
+              </div>
+              <div className="follow-preview-content">
+                <strong>Dian Nurwahid (@denzhang1) • Foto dan video Instagram</strong>
+                <em>
+                  Bursa Ekonom Muda, Bertumbuh dengan Literasi, Bertransformasi
+                  untuk Nusantara. Klik untuk follow dan like dulu.
+                </em>
+              </div>
+            </a>
+            <button className="primary-tool-action follow-gate-button" type="button" onClick={followAndContinue}>
+              <ExternalLink size={17} />
+              Follow & Like, lalu Generate HD
+            </button>
+            <small>Tombol ini hanya muncul sekali di browser kamu setelah diklik.</small>
+          </div>
         </div>
       ) : null}
 
